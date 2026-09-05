@@ -372,6 +372,66 @@ function ProjectForm({
     </form>
   );
 }
+function PinGate({ onUnlock }: { onUnlock: () => void }) {
+  const [pin, setPin] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  return (
+    <div className="pin-gate">
+      <form
+        className="pin-card"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setBusy(true);
+          setError('');
+          try {
+            const r = await fetch('/api/session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pin }),
+            });
+            if (r.ok) {
+              onUnlock();
+              return;
+            }
+            const s = (await r.json().catch(() => ({}))) as { error?: string };
+            setError(s.error || 'Incorrect passphrase.');
+            setPin('');
+          } catch {
+            setError('Could not verify right now. Please try again.');
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <span className="brand">
+          tempo<span>✳</span>
+        </span>
+        <h1>This workspace is private</h1>
+        <p className="form-note">
+          Enter your passphrase to open your time tracker.
+        </p>
+        <input
+          className="pin-input"
+          type="password"
+          value={pin}
+          onChange={(event) => setPin(event.target.value)}
+          placeholder="Passphrase"
+          aria-label="Passphrase"
+          autoComplete="current-password"
+        />
+        {error && (
+          <p className="pin-error" role="alert">
+            {error}
+          </p>
+        )}
+        <button className="button primary" disabled={busy || !pin}>
+          {busy ? 'Checking…' : 'Unlock'}
+        </button>
+      </form>
+    </div>
+  );
+}
 export default function Home() {
   const [view, setView] = useState('Overview');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -380,6 +440,7 @@ export default function Home() {
   const lock = useRef(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [authRequired, setAuthRequired] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
   const [confirm, setConfirm] = useState<{
     action: string;
@@ -402,8 +463,13 @@ export default function Home() {
   const load = useCallback(async () => {
     try {
       const r = await fetch('/api/workspace', { cache: 'no-store' });
+      if (r.status === 401) {
+        setAuthRequired(true);
+        return;
+      }
       const s = (await r.json()) as Snapshot & { error?: string };
       if (!r.ok) throw new Error(s.error || 'Could not load your workspace.');
+      setAuthRequired(false);
       if (!lock.current) apply(s);
     } catch (e) {
       setError(
@@ -439,7 +505,11 @@ export default function Home() {
             revision: snapshotRef.current.revision,
           }),
         });
-        const s = (await r.json()) as Snapshot & { error?: string };
+        const s = (await r.json()) as Snapshot & {
+          error?: string;
+          authRequired?: boolean;
+        };
+        if (r.status === 401 || s.authRequired) setAuthRequired(true);
         if (s.workspace) apply(s);
         if (!r.ok) throw new Error(s.error || 'Could not save your change.');
         setNotice(
@@ -704,6 +774,15 @@ export default function Home() {
       )}
     </>
   );
+  if (authRequired)
+    return (
+      <PinGate
+        onUnlock={() => {
+          setAuthRequired(false);
+          void load();
+        }}
+      />
+    );
   return (
     <SidebarProvider style={{ '--sidebar-width': '232px' } as CSSProperties}>
       <Sidebar>

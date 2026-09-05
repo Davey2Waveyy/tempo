@@ -1,9 +1,25 @@
+import { env } from 'cloudflare:workers';
 import { getDatabase } from '@/db';
+import { isValidSession } from '@/lib/auth';
 import { seedWorkspace, type Workspace } from '@/lib/tempo';
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'no-store' };
 function response(data: unknown, status = 200) {
   return Response.json(data, { status, headers });
+}
+// Blocks access when a passphrase is configured and the caller has no valid
+// session. With no APP_PIN set the workspace stays open.
+async function requireSession(request: Request): Promise<Response | null> {
+  const pin = env.APP_PIN;
+  if (!pin) return null;
+  if (await isValidSession(request.headers.get('cookie'), pin)) return null;
+  return response(
+    {
+      error: 'This workspace is private. Please enter your passphrase.',
+      authRequired: true,
+    },
+    401,
+  );
 }
 async function snapshot() {
   const db = getDatabase();
@@ -23,7 +39,9 @@ async function snapshot() {
     revision: row.revision,
   };
 }
-export async function GET() {
+export async function GET(request: Request) {
+  const denied = await requireSession(request);
+  if (denied) return denied;
   try {
     return response(await snapshot());
   } catch {
@@ -62,6 +80,8 @@ export async function POST(request: Request) {
   const origin = request.headers.get('origin');
   if (origin && origin !== new URL(request.url).origin)
     return response({ error: 'Request origin is not allowed.' }, 403);
+  const denied = await requireSession(request);
+  if (denied) return denied;
   try {
     const raw = await request.text();
     if (raw.length > 20000)
