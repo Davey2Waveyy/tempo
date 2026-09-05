@@ -420,7 +420,7 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
         }}
       >
         <span className="brand">
-          tempo<span>✳</span>
+          tempo
         </span>
         <h1>This workspace is private</h1>
         <p className="form-note">
@@ -595,7 +595,7 @@ function Invoice({
         <header className="invoice-head">
           <div>
             <span className="invoice-mark">
-              tempo<span>✳</span>
+              tempo
             </span>
             <h1>Invoice</h1>
           </div>
@@ -1057,7 +1057,7 @@ export default function Home() {
       <Sidebar>
         <SidebarHeader>
           <Link className="brand" href="/">
-            tempo<span>✳</span>
+            tempo
           </Link>
           <div className="workspace">
             <span className="workspace-icon">S</span>
@@ -1886,7 +1886,7 @@ export default function Home() {
                 </>
               )}
               <footer className="workspace-footer">
-                <span>✳ A little more clarity. A little less admin.</span>
+                <span>A little more clarity. A little less admin.</span>
                 <span>
                   {w.demo ? (
                     <button
