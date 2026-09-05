@@ -42,7 +42,34 @@ export function AdminPanel({
       member: Member;
       action: 'remove' | 'reissue';
     } | null>(null),
-    [copied, setCopied] = useState(false);
+    [copied, setCopied] = useState<'invite' | 'code' | ''>('');
+  function inviteMessage(invite: { email: string; code: string }) {
+    const origin =
+      typeof window === 'undefined'
+        ? 'https://tempo.cillierd.workers.dev'
+        : window.location.origin;
+    return [
+      "You're invited to Tempo — your own private time-tracking workspace.",
+      '',
+      `1. Open ${origin}`,
+      '2. Click "First visit or lost your passkey? Use a setup code"',
+      `3. Enter your email: ${invite.email}`,
+      `4. Enter this setup code: ${invite.code}`,
+      '5. Approve the passkey prompt (Face ID / Touch ID / fingerprint).',
+      '',
+      'The code is one-time and expires within 24 hours.',
+    ].join('\n');
+  }
+  async function copy(kind: 'invite' | 'code') {
+    if (!issued) return;
+    const text = kind === 'code' ? issued.code : inviteMessage(issued);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(kind);
+    } catch {
+      setError('Clipboard is unavailable — select the code above and copy it.');
+    }
+  }
   const load = useCallback(async () => {
     try {
       const r = await fetch('/api/admin/users', { cache: 'no-store' });
@@ -59,7 +86,7 @@ export function AdminPanel({
   async function act(action: 'add' | 'remove' | 'reissue', member?: Member) {
     setBusy(true);
     setError('');
-    setCopied(false);
+    setCopied('');
     setIssued(null);
     try {
       const r = await fetch(
@@ -141,29 +168,26 @@ export function AdminPanel({
             <section className="setup-result">
               <strong>Invitation ready for {issued.email}</strong>
               <p>
-                Share this code privately. It is shown only now and expires in
-                24 hours.
+                Copy the message below and send it to them however you like —
+                text, chat, or your own email. It’s shown only now and expires
+                in 24 hours.
               </p>
-              <div>
+              <div className="setup-code">
                 <code>{issued.code}</code>
+              </div>
+              <div className="setup-actions">
                 <button
-                  className="button"
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(issued.code);
-                      setCopied(true);
-                    } catch {
-                      setError(
-                        'Select and copy the code above. Clipboard access is unavailable.',
-                      );
-                    }
-                  }}
+                  className="button primary"
+                  onClick={() => copy('invite')}
                 >
                   <Copy size={15} />
-                  {copied ? 'Copied' : 'Copy'}
+                  {copied === 'invite' ? 'Copied invite' : 'Copy invite message'}
+                </button>
+                <button className="button" onClick={() => copy('code')}>
+                  {copied === 'code' ? 'Copied code' : 'Copy code only'}
                 </button>
               </div>
-              <small>No email has been sent.</small>
+              <small>Tempo doesn’t send emails — you share this yourself.</small>
             </section>
           )}
           <div className="member-list">
