@@ -1,5 +1,7 @@
 'use client';
 import Link from 'next/link';
+import { AuthScreen, type CurrentUser } from '@/components/auth-screen';
+import { AdminPanel } from '@/components/admin-panel';
 import {
   useCallback,
   useEffect,
@@ -387,66 +389,6 @@ function ProjectForm({
     </form>
   );
 }
-function PinGate({ onUnlock }: { onUnlock: () => void }) {
-  const [pin, setPin] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  return (
-    <div className="pin-gate">
-      <form
-        className="pin-card"
-        onSubmit={async (event) => {
-          event.preventDefault();
-          setBusy(true);
-          setError('');
-          try {
-            const r = await fetch('/api/session', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ pin }),
-            });
-            if (r.ok) {
-              onUnlock();
-              return;
-            }
-            const s = (await r.json().catch(() => ({}))) as { error?: string };
-            setError(s.error || 'Incorrect passphrase.');
-            setPin('');
-          } catch {
-            setError('Could not verify right now. Please try again.');
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        <span className="brand">
-          tempo
-        </span>
-        <h1>This workspace is private</h1>
-        <p className="form-note">
-          Enter your passphrase to open your time tracker.
-        </p>
-        <input
-          className="pin-input"
-          type="password"
-          value={pin}
-          onChange={(event) => setPin(event.target.value)}
-          placeholder="Passphrase"
-          aria-label="Passphrase"
-          autoComplete="current-password"
-        />
-        {error && (
-          <p className="pin-error" role="alert">
-            {error}
-          </p>
-        )}
-        <button className="button primary" disabled={busy || !pin}>
-          {busy ? 'Checking…' : 'Unlock'}
-        </button>
-      </form>
-    </div>
-  );
-}
 type InvoiceRequest = {
   client: string;
   from: string;
@@ -563,7 +505,8 @@ function Invoice({
   );
   const lines = entries
     .filter(
-      (e) => clientProjectIds.has(e.projectId) && e.date >= from && e.date <= to,
+      (e) =>
+        clientProjectIds.has(e.projectId) && e.date >= from && e.date <= to,
     )
     .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
   const rateOf = (id: string) => projects.find((p) => p.id === id)?.rate || 0;
@@ -594,9 +537,7 @@ function Invoice({
       <div className="invoice-sheet">
         <header className="invoice-head">
           <div>
-            <span className="invoice-mark">
-              tempo
-            </span>
+            <span className="invoice-mark">tempo</span>
             <h1>Invoice</h1>
           </div>
           <div className="invoice-id">
@@ -689,7 +630,9 @@ export default function Home() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [authRequired, setAuthRequired] = useState(false);
-  const [authEnabled, setAuthEnabled] = useState(false);
+  const authEpoch = useRef(0);
+  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [adminOpen, setAdminOpen] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
   const [invoice, setInvoice] = useState<InvoiceRequest | null>(null);
   const [confirm, setConfirm] = useState<{
@@ -711,13 +654,32 @@ export default function Home() {
     setSnapshot(s);
   }, []);
   const load = useCallback(async () => {
+    const epoch=authEpoch.current;
     try {
+      const me = await fetch('/api/auth/me', { cache: 'no-store' });
+      if(epoch!==authEpoch.current)return;
+      if (me.status === 401) {
+        snapshotRef.current = null;
+        setSnapshot(null);
+        setUser(null);
+        setAuthRequired(true);
+        return;
+      }
+      if (!me.ok) {
+        const problem = (await me.json()) as { error?: string };
+        throw new Error(problem.error || 'Could not sign in.');
+      }
+      const currentUser = (await me.json()) as CurrentUser;
+      setUser(currentUser);
       const r = await fetch('/api/workspace', { cache: 'no-store' });
+      if(epoch!==authEpoch.current)return;
       if (r.status === 401) {
+        snapshotRef.current=null;setSnapshot(null);setUser(null);
         setAuthRequired(true);
         return;
       }
       const s = (await r.json()) as Snapshot & { error?: string };
+      if(epoch!==authEpoch.current)return;
       if (!r.ok) throw new Error(s.error || 'Could not load your workspace.');
       setAuthRequired(false);
       if (!lock.current) apply(s);
@@ -735,12 +697,6 @@ export default function Home() {
     document.addEventListener('visibilitychange', refresh);
     return () => document.removeEventListener('visibilitychange', refresh);
   }, [load]);
-  useEffect(() => {
-    void fetch('/api/session')
-      .then((r) => r.json() as Promise<{ authRequired?: boolean }>)
-      .then((s) => setAuthEnabled(Boolean(s.authRequired)))
-      .catch(() => {});
-  }, []);
   const mutate = useCallback(
     async (
       action: string,
@@ -765,7 +721,12 @@ export default function Home() {
           error?: string;
           authRequired?: boolean;
         };
-        if (r.status === 401 || s.authRequired) setAuthRequired(true);
+        if (r.status === 401 || s.authRequired) {
+          snapshotRef.current = null;
+          setSnapshot(null);
+          setUser(null);
+          setAuthRequired(true);
+        }
         if (s.workspace) apply(s);
         if (!r.ok) throw new Error(s.error || 'Could not save your change.');
         setNotice(
@@ -1045,8 +1006,10 @@ export default function Home() {
   );
   if (authRequired)
     return (
-      <PinGate
-        onUnlock={() => {
+      <AuthScreen
+        onUnlock={(currentUser) => {
+          authEpoch.current++;setDescription('');setTimerProject('');setTimerBillable(true);setSearch('');setProjectFilter('all');setBillFilter('all');setView('Overview');setWeek(0);setInvoice(null);setModal(null);setConfirm(null);setNotice('');setError('');setAdminOpen(false);
+          setUser(currentUser);
           setAuthRequired(false);
           void load();
         }}
@@ -1092,6 +1055,15 @@ export default function Home() {
           </div>
         </SidebarContent>
         <SidebarFooter>
+          {user?.role === 'owner' && (
+            <button
+              className="sidebar-logout"
+              onClick={() => setAdminOpen(true)}
+            >
+              <Settings2 size={16} />
+              <span>Manage members</span>
+            </button>
+          )}
           <button
             className="profile"
             onClick={() => {
@@ -1112,13 +1084,24 @@ export default function Home() {
             </span>
             <Settings2 size={17} />
           </button>
-          {authEnabled && (
+          {user && (
             <button
               className="sidebar-logout"
+              disabled={busy}
               onClick={async () => {
+                authEpoch.current++;
                 try {
-                  await fetch('/api/session', { method: 'DELETE' });
-                } catch {}
+                  const r = await fetch('/api/auth/logout', { method: 'POST' });
+                  if (!r.ok) throw new Error('Logout failed.');
+                } catch {
+                  setError('Could not log out. Please try again.');
+                  return;
+                }
+                setUser(null);
+                setAdminOpen(false);
+                setModal(null);
+                setInvoice(null);
+                setConfirm(null);
                 snapshotRef.current = null;
                 setSnapshot(null);
                 setAuthRequired(true);
@@ -1805,8 +1788,12 @@ export default function Home() {
                         <TableRow>
                           <TableHead>Project</TableHead>
                           <TableHead>Hours</TableHead>
-                          <TableHead className="col-bh">Billable hours</TableHead>
-                          <TableHead className="col-share">Share of week</TableHead>
+                          <TableHead className="col-bh">
+                            Billable hours
+                          </TableHead>
+                          <TableHead className="col-share">
+                            Share of week
+                          </TableHead>
                           <TableHead className="right">
                             Billable value ({w.currency})
                           </TableHead>
@@ -2038,6 +2025,9 @@ export default function Home() {
           request={invoice}
           onClose={() => setInvoice(null)}
         />
+      )}
+      {user?.role === 'owner' && (
+        <AdminPanel open={adminOpen} onClose={() => setAdminOpen(false)} />
       )}
     </SidebarProvider>
   );

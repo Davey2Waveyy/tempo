@@ -1,37 +1,22 @@
-import { env } from 'cloudflare:workers';
 import { getDatabase } from '@/db';
-import { isValidSession } from '@/lib/auth';
+import { requireUser, fail, checkOrigin } from '@/lib/auth-server';
 import { seedWorkspace, type Workspace } from '@/lib/tempo';
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'no-store' };
 function response(data: unknown, status = 200) {
   return Response.json(data, { status, headers });
 }
-// Blocks access when a passphrase is configured and the caller has no valid
-// session. With no APP_PIN set the workspace stays open.
-async function requireSession(request: Request): Promise<Response | null> {
-  const pin = env.APP_PIN;
-  if (!pin) return null;
-  if (await isValidSession(request.headers.get('cookie'), pin)) return null;
-  return response(
-    {
-      error: 'This workspace is private. Please enter your passphrase.',
-      authRequired: true,
-    },
-    401,
-  );
-}
-async function snapshot() {
+async function snapshot(userId: string) {
   const db = getDatabase();
   await db
     .prepare(
       'INSERT OR IGNORE INTO workspaces (id,data,revision) VALUES (?,?,0)',
     )
-    .bind('solo', JSON.stringify(seedWorkspace()))
+    .bind(userId, JSON.stringify(seedWorkspace()))
     .run();
   const row = await db
     .prepare('SELECT data,revision FROM workspaces WHERE id=?')
-    .bind('solo')
+    .bind(userId)
     .first<{ data: string; revision: number }>();
   if (!row) throw new Error('Workspace unavailable');
   return {
@@ -40,15 +25,11 @@ async function snapshot() {
   };
 }
 export async function GET(request: Request) {
-  const denied = await requireSession(request);
-  if (denied) return denied;
   try {
-    return response(await snapshot());
-  } catch {
-    return response(
-      { error: 'Could not load your workspace. Please try again.' },
-      503,
-    );
+    const user = await requireUser(request);
+    return response(await snapshot(user.id));
+  } catch (error) {
+    return fail(error);
   }
 }
 function str(v: unknown, max = 160): string {
@@ -77,17 +58,14 @@ function boolean(v: unknown): boolean {
   return v;
 }
 export async function POST(request: Request) {
-  const origin = request.headers.get('origin');
-  if (origin && origin !== new URL(request.url).origin)
-    return response({ error: 'Request origin is not allowed.' }, 403);
-  const denied = await requireSession(request);
-  if (denied) return denied;
   try {
+    checkOrigin(request);
+    const user = await requireUser(request);
     const raw = await request.text();
     if (raw.length > 20000)
       return response({ error: 'Request is too large.' }, 413);
     const { action, payload: p = {}, revision } = JSON.parse(raw);
-    const snap = await snapshot();
+    const snap = await snapshot(user.id);
     if (revision !== snap.revision)
       return response(
         {
@@ -188,18 +166,20 @@ export async function POST(request: Request) {
       .prepare(
         'UPDATE workspaces SET data=?,revision=revision+1 WHERE id=? AND revision=?',
       )
-      .bind(JSON.stringify(w), 'solo', revision)
+      .bind(JSON.stringify(w), user.id, revision)
       .run();
     if (!result.meta.changes)
       return response(
         {
           error: 'Your workspace changed in another tab. Please try again.',
-          ...(await snapshot()),
+          ...(await snapshot(user.id)),
         },
         409,
       );
     return response({ workspace: w, revision: revision + 1 });
   } catch (error) {
+    if (error && typeof error === 'object' && 'status' in error)
+      return fail(error);
     return response(
       {
         error:
