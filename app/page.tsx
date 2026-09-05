@@ -31,6 +31,8 @@ import {
   RotateCcw,
   Coffee,
   LogOut,
+  Printer,
+  FileText,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -445,6 +447,238 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
     </div>
   );
 }
+type InvoiceRequest = {
+  client: string;
+  from: string;
+  to: string;
+  number: string;
+  notes: string;
+};
+function InvoiceSetup({
+  clients,
+  onCreate,
+}: {
+  clients: string[];
+  onCreate: (request: InvoiceRequest) => void;
+}) {
+  const today = new Date();
+  const [client, setClient] = useState(clients[0] || '');
+  const [from, setFrom] = useState(
+    dateKey(new Date(today.getFullYear(), today.getMonth(), 1)),
+  );
+  const [to, setTo] = useState(dateKey(today));
+  const [number, setNumber] = useState(
+    `INV-${dateKey(today).replaceAll('-', '')}`,
+  );
+  const [notes, setNotes] = useState('');
+  if (!clients.length)
+    return (
+      <p className="form-note">
+        Add a project with a client first — an invoice is billed to a client.
+      </p>
+    );
+  return (
+    <div className="invoice-setup">
+      <div className="invoice-setup-grid">
+        <div className="form-field">
+          <span>Client</span>
+          <Picker
+            label="Client"
+            value={client}
+            onChange={setClient}
+            items={clients.map((c) => ({ value: c, label: c }))}
+          />
+        </div>
+        <label>
+          From
+          <input
+            type="date"
+            value={from}
+            max={to}
+            onChange={(e) => setFrom(e.target.value)}
+          />
+        </label>
+        <label>
+          To
+          <input
+            type="date"
+            value={to}
+            min={from}
+            onChange={(e) => setTo(e.target.value)}
+          />
+        </label>
+        <label>
+          Invoice no.
+          <input
+            value={number}
+            maxLength={40}
+            onChange={(e) => setNumber(e.target.value)}
+          />
+        </label>
+      </div>
+      <label className="invoice-setup-notes">
+        Notes / payment terms (optional)
+        <textarea
+          rows={2}
+          maxLength={500}
+          value={notes}
+          placeholder="e.g. Payment due within 14 days. Bank transfer to…"
+          onChange={(e) => setNotes(e.target.value)}
+        />
+      </label>
+      <button
+        className="button primary"
+        disabled={!client}
+        onClick={() => onCreate({ client, from, to, number, notes })}
+      >
+        <FileText size={16} /> Preview invoice
+      </button>
+    </div>
+  );
+}
+function Invoice({
+  workspace,
+  projects,
+  entries,
+  request,
+  onClose,
+}: {
+  workspace: Workspace;
+  projects: Project[];
+  entries: Entry[];
+  request: InvoiceRequest;
+  onClose: () => void;
+}) {
+  const { client, from, to, number, notes } = request;
+  const currency = workspace.currency;
+  const money2 = (v: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(v);
+  const clientProjectIds = new Set(
+    projects.filter((p) => p.client === client).map((p) => p.id),
+  );
+  const lines = entries
+    .filter(
+      (e) => clientProjectIds.has(e.projectId) && e.date >= from && e.date <= to,
+    )
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  const rateOf = (id: string) => projects.find((p) => p.id === id)?.rate || 0;
+  const nameOf = (id: string) => projects.find((p) => p.id === id)?.name || '';
+  const amountOf = (e: Entry) =>
+    e.billable ? (e.seconds / 3600) * rateOf(e.projectId) : 0;
+  const totalDue = lines.reduce((sum, e) => sum + amountOf(e), 0);
+  const totalHours = lines.reduce((sum, e) => sum + e.seconds / 3600, 0);
+  const billableHours = lines
+    .filter((e) => e.billable)
+    .reduce((sum, e) => sum + e.seconds / 3600, 0);
+  const fmt = (d: string) =>
+    new Date(d + 'T12:00:00').toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  return (
+    <div className="invoice-overlay">
+      <div className="invoice-actions">
+        <button className="button" onClick={onClose}>
+          Close
+        </button>
+        <button className="button primary" onClick={() => window.print()}>
+          <Printer size={16} /> Print / Save as PDF
+        </button>
+      </div>
+      <div className="invoice-sheet">
+        <header className="invoice-head">
+          <div>
+            <span className="invoice-mark">
+              tempo<span>✳</span>
+            </span>
+            <h1>Invoice</h1>
+          </div>
+          <div className="invoice-id">
+            <div>
+              <span>Invoice no.</span>
+              <strong>{number || '—'}</strong>
+            </div>
+            <div>
+              <span>Issued</span>
+              <strong>{fmt(dateKey(new Date()))}</strong>
+            </div>
+          </div>
+        </header>
+        <div className="invoice-parties">
+          <div>
+            <span>From</span>
+            <strong>{workspace.name}</strong>
+            <p>Independent consultant</p>
+          </div>
+          <div>
+            <span>Bill to</span>
+            <strong>{client}</strong>
+            <p>
+              {fmt(from)} – {fmt(to)}
+            </p>
+          </div>
+        </div>
+        {lines.length ? (
+          <table className="invoice-lines">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th className="num">Hours</th>
+                <th className="num">Rate</th>
+                <th className="num">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((e) => (
+                <tr key={e.id}>
+                  <td className="nowrap">{fmt(e.date)}</td>
+                  <td>
+                    {e.description}
+                    <small>{nameOf(e.projectId)}</small>
+                    {!e.billable && (
+                      <span className="invoice-nb">Non-billable</span>
+                    )}
+                  </td>
+                  <td className="num">{(e.seconds / 3600).toFixed(2)}</td>
+                  <td className="num">
+                    {e.billable ? money2(rateOf(e.projectId)) : '—'}
+                  </td>
+                  <td className="num">
+                    {e.billable ? money2(amountOf(e)) : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="invoice-empty">
+            No time recorded for {client} between {fmt(from)} and {fmt(to)}.
+          </p>
+        )}
+        <div className="invoice-summary">
+          <span className="invoice-summary-meta">
+            {billableHours.toFixed(2)} billable hours
+            {totalHours > billableHours
+              ? ` · ${(totalHours - billableHours).toFixed(2)}h non-billable, not charged`
+              : ''}
+          </span>
+          <div className="invoice-total-row">
+            <span>Total due</span>
+            <strong>{money2(totalDue)}</strong>
+          </div>
+        </div>
+        {notes.trim() && <p className="invoice-notes">{notes}</p>}
+      </div>
+    </div>
+  );
+}
 export default function Home() {
   const [view, setView] = useState('Overview');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -457,6 +691,7 @@ export default function Home() {
   const [authRequired, setAuthRequired] = useState(false);
   const [authEnabled, setAuthEnabled] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
+  const [invoice, setInvoice] = useState<InvoiceRequest | null>(null);
   const [confirm, setConfirm] = useState<{
     action: string;
     payload: Record<string, unknown>;
@@ -624,6 +859,7 @@ export default function Home() {
   const projects = w?.projects || [];
   const entries = w?.entries || [];
   const active = projects.filter((p) => !p.archived);
+  const clients = [...new Set(projects.map((p) => p.client))].sort();
   const dates = weekDates(week);
   const periodEntries = entries.filter(
     (e) => e.date >= dates[0] && e.date <= dates[6],
@@ -1545,8 +1781,19 @@ export default function Home() {
                       disabled={!visibleEntries.length}
                       onClick={download}
                     >
-                      <Download size={16} /> Export timesheet
+                      <Download size={16} /> Export CSV
                     </button>
+                  </section>
+                  <section className="panel">
+                    <div className="section-heading">
+                      <h2>Create an invoice</h2>
+                    </div>
+                    <p className="invoice-intro">
+                      Bill a client for a period. Billable time is charged at
+                      each project’s rate; non-billable time is listed but not
+                      charged. Preview, then Print → Save as PDF.
+                    </p>
+                    <InvoiceSetup clients={clients} onCreate={setInvoice} />
                   </section>
                   <section className="panel">
                     <div className="section-heading">
@@ -1781,6 +2028,15 @@ export default function Home() {
           </div>
         </AlertDialogContent>
       </AlertDialog>
+      {invoice && w && (
+        <Invoice
+          workspace={w}
+          projects={projects}
+          entries={entries}
+          request={invoice}
+          onClose={() => setInvoice(null)}
+        />
+      )}
     </SidebarProvider>
   );
 }
