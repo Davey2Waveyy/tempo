@@ -451,6 +451,7 @@ export default function Home() {
   const snapshotRef = useRef<Snapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
+  const timerInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [authRequired, setAuthRequired] = useState(false);
@@ -995,6 +996,7 @@ export default function Home() {
                       )}
                     </span>
                     <input
+                      ref={timerInput}
                       className="timer-description"
                       aria-label="What are you working on?"
                       maxLength={160}
@@ -1064,8 +1066,9 @@ export default function Home() {
                           setModal({ type: 'project' });
                         } else if (!description.trim()) {
                           setError(
-                            'Add a short description of your work before starting the timer.',
+                            'Type what you’re working on in the box, then press play.',
                           );
+                          timerInput.current?.focus();
                         } else
                           await mutate('startTimer', {
                             description,
