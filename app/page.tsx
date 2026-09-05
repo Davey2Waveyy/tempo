@@ -1805,8 +1805,8 @@ export default function Home() {
                         <TableRow>
                           <TableHead>Project</TableHead>
                           <TableHead>Hours</TableHead>
-                          <TableHead>Billable hours</TableHead>
-                          <TableHead>Share of week</TableHead>
+                          <TableHead className="col-bh">Billable hours</TableHead>
+                          <TableHead className="col-share">Share of week</TableHead>
                           <TableHead className="right">
                             Billable value ({w.currency})
                           </TableHead>
@@ -1840,8 +1840,10 @@ export default function Home() {
                                   </div>
                                 </TableCell>
                                 <TableCell>{h.toFixed(1)}h</TableCell>
-                                <TableCell>{bh.toFixed(1)}h</TableCell>
-                                <TableCell>
+                                <TableCell className="col-bh">
+                                  {bh.toFixed(1)}h
+                                </TableCell>
+                                <TableCell className="col-share">
                                   <div className="report-share">
                                     <Progress
                                       value={

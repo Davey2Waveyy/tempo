@@ -1828,8 +1828,25 @@ small,
   .section-heading > span {
     font-size: 12px;
   }
-  .report-table .entry-work {
-    min-width: 210px;
+  .report-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+  .report-table .col-bh,
+  .report-table .col-share {
+    display: none;
+  }
+  .report-table th:first-child,
+  .report-table td:first-child {
+    width: 54%;
+  }
+  .report-table th {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .report-table .entry-work,
+  .report-table .entry-work > div {
+    min-width: 0;
   }
   .project-page-tools {
     font-size: 12px;
