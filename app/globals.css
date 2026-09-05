@@ -1059,6 +1059,12 @@ button:active {
 .entry-table {
   margin-top: 18px;
 }
+.entry-table .entry-row {
+  cursor: pointer;
+}
+.entry-table .entry-row:hover {
+  background: #f8faff;
+}
 .entry-table th,
 .report-table th {
   font-size: 11px;
@@ -1839,6 +1845,40 @@ small,
   }
   .new-project-card {
     min-height: 220px;
+  }
+  /* On phones, collapse the wide entry table: tap a row to edit or delete,
+     so the action buttons never sit off-screen to the right. */
+  .entry-table .col-type,
+  .entry-table .col-value,
+  .entry-table .col-actions {
+    display: none;
+  }
+  .entry-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+  .entry-table .col-date {
+    width: 54px;
+  }
+  .entry-table .col-duration {
+    width: 72px;
+  }
+  .entry-table .entry-work,
+  .entry-table .entry-work > div {
+    min-width: 0;
+  }
+  .entry-table .entry-work strong {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .form-actions {
+    flex-wrap: wrap;
+  }
+  .form-actions .button.delete-entry {
+    order: 2;
+    width: 100%;
+    margin: 4px 0 0;
+    justify-content: center;
   }
 }
 .form-field {

@@ -708,11 +708,11 @@ export default function Home() {
           <TableHeader>
             <TableRow>
               <TableHead>Work & project</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead className="right">Duration</TableHead>
-              <TableHead className="right">Value</TableHead>
-              <TableHead>
+              <TableHead className="col-date">Date</TableHead>
+              <TableHead className="col-type">Type</TableHead>
+              <TableHead className="right col-duration">Duration</TableHead>
+              <TableHead className="right col-value">Value</TableHead>
+              <TableHead className="col-actions">
                 <span className="sr-only">Actions</span>
               </TableHead>
             </TableRow>
@@ -721,7 +721,14 @@ export default function Home() {
             {rows.map((e) => {
               const p = projects.find((p) => p.id === e.projectId);
               return (
-                <TableRow key={e.id}>
+                <TableRow
+                  key={e.id}
+                  className="entry-row"
+                  onClick={() => {
+                    setError('');
+                    setModal({ type: 'entry', entry: e });
+                  }}
+                >
                   <TableCell>
                     <div className="entry-work">
                       <span className={`project-icon color-${p?.color || 0}`}>
@@ -743,7 +750,7 @@ export default function Home() {
                       { month: 'short', day: 'numeric' },
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="col-type">
                     <span className={e.billable ? 'billable' : 'nonbillable'}>
                       {e.billable ? 'Billable' : 'Non-billable'}
                     </span>
@@ -751,17 +758,18 @@ export default function Home() {
                   <TableCell className="right entry-duration">
                     {duration(e.seconds)}
                   </TableCell>
-                  <TableCell className="right muted">
+                  <TableCell className="right muted col-value">
                     {e.billable
                       ? money((e.seconds / 3600) * (p?.rate || 0), w?.currency)
                       : '—'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="col-actions">
                     <div className="row-actions">
                       <button
                         aria-label={`Edit ${e.description}`}
                         title="Edit entry"
-                        onClick={() => {
+                        onClick={(ev) => {
+                          ev.stopPropagation();
                           setError('');
                           setModal({ type: 'entry', entry: e });
                         }}
@@ -772,14 +780,15 @@ export default function Home() {
                         className="danger"
                         aria-label={`Delete ${e.description}`}
                         title="Delete entry"
-                        onClick={() =>
+                        onClick={(ev) => {
+                          ev.stopPropagation();
                           setConfirm({
                             action: 'deleteEntry',
                             payload: { id: e.id },
                             title: 'Delete this entry?',
                             text: `“${e.description}” will be permanently removed from your timesheet.`,
-                          })
-                        }
+                          });
+                        }}
                       >
                         <Trash2 size={16} />
                       </button>
