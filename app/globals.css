@@ -1134,18 +1134,24 @@ button:active {
   justify-content: flex-end;
 }
 .row-actions button {
-  width: 27px;
-  height: 30px;
+  width: 31px;
+  height: 31px;
   display: grid;
   place-items: center;
-  border: 0;
-  background: none;
-  color: #aab1bf;
-  border-radius: 4px;
+  border: 1px solid transparent;
+  background: #eef1f7;
+  color: #626b7d;
+  border-radius: 7px;
 }
 .row-actions button:hover {
-  background: #edf1ff;
+  background: #e6ecff;
   color: #3f5cd4;
+  border-color: #d3ddfa;
+}
+.row-actions button.danger:hover {
+  background: #fdece9;
+  color: #c0392b;
+  border-color: #f2ccc5;
 }
 .filters {
   display: flex;
@@ -1899,4 +1905,50 @@ small,
   font-size: 13px;
   font-weight: 500;
   color: #c0392b;
+}
+/* Timer project selector — make it read as an obvious dropdown on the card. */
+.timer-project {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.timer-project > svg {
+  color: #cfd9ff;
+  flex-shrink: 0;
+}
+.timer-project-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c5d1fb;
+}
+.timer-options .picker {
+  background: #ffffff1f;
+  border: 1px solid #ffffff45;
+  color: #fff;
+  border-radius: 8px;
+  padding: 7px 11px;
+  min-height: 34px;
+  font-size: 13px;
+  font-weight: 550;
+  gap: 7px;
+}
+.timer-options .picker:hover {
+  background: #ffffff30;
+  border-color: #ffffff73;
+}
+.timer-options .picker svg {
+  opacity: 0.85;
+}
+/* Delete affordance inside the entry editor. */
+.button.delete-entry {
+  margin-right: auto;
+  color: #c0392b;
+  border-color: #f0d3ce;
+}
+.button.delete-entry:hover {
+  background: #fdece9;
+  border-color: #e6b7af;
 }

@@ -161,12 +161,14 @@ function EntryForm({
   busy,
   onSave,
   onCancel,
+  onDelete,
 }: {
   entry?: Entry;
   projects: Project[];
   busy: boolean;
   onSave: (p: Record<string, unknown>) => Promise<boolean>;
   onCancel: () => void;
+  onDelete?: () => void;
 }) {
   const [projectId, setProject] = useState(
     entry?.projectId || projects.find((p) => !p.archived)?.id || '',
@@ -257,6 +259,16 @@ function EntryForm({
         />
       </div>
       <div className="form-actions">
+        {entry && onDelete && (
+          <button
+            type="button"
+            className="button delete-entry"
+            onClick={onDelete}
+            disabled={busy}
+          >
+            <Trash2 size={15} /> Delete entry
+          </button>
+        )}
         <button type="button" className="button" onClick={onCancel}>
           Cancel
         </button>
@@ -739,15 +751,18 @@ export default function Home() {
                     <div className="row-actions">
                       <button
                         aria-label={`Edit ${e.description}`}
+                        title="Edit entry"
                         onClick={() => {
                           setError('');
                           setModal({ type: 'entry', entry: e });
                         }}
                       >
-                        <Pencil size={14} />
+                        <Pencil size={16} />
                       </button>
                       <button
+                        className="danger"
                         aria-label={`Delete ${e.description}`}
+                        title="Delete entry"
                         onClick={() =>
                           setConfirm({
                             action: 'deleteEntry',
@@ -757,7 +772,7 @@ export default function Home() {
                           })
                         }
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </TableCell>
@@ -975,16 +990,20 @@ export default function Home() {
                     />
                     <div className="timer-options">
                       {active.length ? (
-                        <Picker
-                          label="Select a project"
-                          value={w.timer?.projectId || selectedProject}
-                          disabled={!!w.timer || busy}
-                          onChange={setTimerProject}
-                          items={active.map((p) => ({
-                            value: p.id,
-                            label: `${p.name} · ${p.client}`,
-                          }))}
-                        />
+                        <div className="timer-project">
+                          <FolderKanban size={15} aria-hidden />
+                          <span className="timer-project-label">Project</span>
+                          <Picker
+                            label="Select a project"
+                            value={w.timer?.projectId || selectedProject}
+                            disabled={!!w.timer || busy}
+                            onChange={setTimerProject}
+                            items={active.map((p) => ({
+                              value: p.id,
+                              label: `${p.name} · ${p.client}`,
+                            }))}
+                          />
+                        </div>
                       ) : (
                         <button
                           className="timer-new"
@@ -1647,6 +1666,21 @@ export default function Home() {
               projects={projects}
               busy={busy}
               onCancel={() => setModal(null)}
+              onDelete={
+                modal.entry
+                  ? () => {
+                      const target = modal.entry;
+                      if (!target) return;
+                      setModal(null);
+                      setConfirm({
+                        action: 'deleteEntry',
+                        payload: { id: target.id },
+                        title: 'Delete this entry?',
+                        text: `“${target.description}” will be permanently removed from your timesheet.`,
+                      });
+                    }
+                  : undefined
+              }
               onSave={async (p) => {
                 const ok = await mutate('saveEntry', p);
                 if (ok) setModal(null);
