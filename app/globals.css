@@ -1952,3 +1952,26 @@ small,
   background: #fdece9;
   border-color: #e6b7af;
 }
+/* Sign out of a passphrase-protected workspace. */
+.sidebar-logout {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: calc(100% - 16px);
+  margin: 2px 8px 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+}
+.sidebar-logout svg {
+  flex-shrink: 0;
+}
+.sidebar-logout:hover {
+  background: #fdece9;
+  border-color: #f0d3ce;
+  color: #c0392b;
+}

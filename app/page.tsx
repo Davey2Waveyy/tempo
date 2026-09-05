@@ -30,6 +30,7 @@ import {
   Archive,
   RotateCcw,
   Coffee,
+  LogOut,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -453,6 +454,7 @@ export default function Home() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [authRequired, setAuthRequired] = useState(false);
+  const [authEnabled, setAuthEnabled] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
   const [confirm, setConfirm] = useState<{
     action: string;
@@ -497,6 +499,12 @@ export default function Home() {
     document.addEventListener('visibilitychange', refresh);
     return () => document.removeEventListener('visibilitychange', refresh);
   }, [load]);
+  useEffect(() => {
+    void fetch('/api/session')
+      .then((r) => r.json() as Promise<{ authRequired?: boolean }>)
+      .then((s) => setAuthEnabled(Boolean(s.authRequired)))
+      .catch(() => {});
+  }, []);
   const mutate = useCallback(
     async (
       action: string,
@@ -858,6 +866,22 @@ export default function Home() {
             </span>
             <Settings2 size={17} />
           </button>
+          {authEnabled && (
+            <button
+              className="sidebar-logout"
+              onClick={async () => {
+                try {
+                  await fetch('/api/session', { method: 'DELETE' });
+                } catch {}
+                snapshotRef.current = null;
+                setSnapshot(null);
+                setAuthRequired(true);
+              }}
+            >
+              <LogOut size={16} />
+              <span>Log out</span>
+            </button>
+          )}
         </SidebarFooter>
       </Sidebar>
       <main className="main">
