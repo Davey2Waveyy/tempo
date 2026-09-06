@@ -146,6 +146,16 @@ async function wait(expression) {
 async function click(selector) {
   await evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
 }
+async function tap(selector) {
+  const point = await evaluate(
+    `(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()`,
+  );
+  await cdp('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x: point.x, y: point.y, id: 1 }],
+  });
+  await cdp('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+}
 async function navigate(label) {
   await click('[aria-label="Search actions and projects"]');
   await wait('!!document.querySelector("[cmdk-input]")');
@@ -350,6 +360,20 @@ try {
     'Project picker and billable switch do not overlap',
   );
   await screenshot('/tmp/tempo-timesheet-mobile.png');
+  await tap('[aria-label="Search actions and projects"]');
+  await wait('!!document.querySelector("[cmdk-input]")');
+  await wait('document.activeElement?.hasAttribute("cmdk-input")');
+  await cdp('Input.dispatchKeyEvent', {
+    type: 'keyDown',
+    key: 'Escape',
+    code: 'Escape',
+  });
+  await cdp('Input.dispatchKeyEvent', {
+    type: 'keyUp',
+    key: 'Escape',
+    code: 'Escape',
+  });
+  await wait('!document.querySelector("[cmdk-input]")');
   await click('.recent-work-item');
   await wait("!!document.querySelector('.timer-card.is-running')");
   await evaluate('window.scrollTo(0,document.body.scrollHeight)');

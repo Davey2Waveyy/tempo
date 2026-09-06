@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import {
   Search,
   Plus,
@@ -61,6 +62,12 @@ export function QuickActions({
     setOpen(value);
     if (value) setQuery('');
   };
+  const openFromGesture = () => {
+    // Mobile Safari only brings up its keyboard when focus happens in the
+    // original touch gesture. Render the dialog synchronously, then focus it.
+    flushSync(() => changeOpen(true));
+    commandInput.current?.focus();
+  };
   useEffect(() => {
     if (!open) return;
     // The dialog is mounted just after this render. Focusing on the next frame
@@ -88,7 +95,7 @@ export function QuickActions({
       <button
         type="button"
         className="quick-action-trigger"
-        onClick={() => changeOpen(true)}
+        onClick={openFromGesture}
         aria-label="Search actions and projects"
       >
         <Search size={15} />
