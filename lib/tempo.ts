@@ -63,74 +63,18 @@ export function money(value: number, currency = 'USD') {
     maximumFractionDigits: 0,
   }).format(value);
 }
+// A brand-new workspace starts empty and clean — new members are not
+// seeded with sample projects or entries. The app's empty states guide
+// them to create their first project and log their first entry.
 export function seedWorkspace(): Workspace {
-  const dates = weekDates();
-  const projects: Project[] = [
-    {
-      id: 'acme',
-      name: 'Brand strategy',
-      client: 'Acme Studio',
-      rate: 150,
-      budget: 40,
-      color: 0,
-      archived: false,
-    },
-    {
-      id: 'northstar',
-      name: 'Digital transformation',
-      client: 'Northstar',
-      rate: 175,
-      budget: 60,
-      color: 1,
-      archived: false,
-    },
-    {
-      id: 'forma',
-      name: 'Product advisory',
-      client: 'Forma',
-      rate: 125,
-      budget: 30,
-      color: 2,
-      archived: false,
-    },
-    {
-      id: 'practice',
-      name: 'Building the practice',
-      client: 'Internal',
-      rate: 0,
-      budget: 20,
-      color: 3,
-      archived: false,
-    },
-  ];
-  const tasks: [string, string, number, number, boolean][] = [
-    ['Discovery workshop & stakeholder interviews', 'acme', 4, 2.5, true],
-    ['Product roadmap review', 'forma', 4, 2, true],
-    ['Proposal & weekly planning', 'practice', 4, 1.5, false],
-    ['Operating model design', 'northstar', 3, 5, true],
-    ['Positioning & competitive landscape', 'acme', 3, 3, true],
-    ['Product research synthesis', 'forma', 2, 3, true],
-    ['Admin & business development', 'practice', 2, 2, false],
-    ['Transformation roadmap', 'northstar', 1, 5, true],
-    ['Brand platform exploration', 'acme', 1, 2.5, true],
-    ['Leadership alignment workshop', 'northstar', 0, 4.5, true],
-    ['Learning & development', 'practice', 0, 1.5, false],
-  ];
   return {
-    projects,
-    entries: tasks.map(([description, projectId, day, h, billable], i) => ({
-      id: `demo-${i}`,
-      description,
-      projectId,
-      date: dates[day],
-      seconds: h * 3600,
-      billable,
-    })),
+    projects: [],
+    entries: [],
     timer: null,
-    name: 'Solo consultant',
+    name: 'My workspace',
     currency: 'USD',
     goal: 40,
-    demo: true,
+    demo: false,
   };
 }
 export function csvExport(

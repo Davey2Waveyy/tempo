@@ -1209,6 +1209,44 @@ export default function Home() {
             </section>
           ) : (
             <>
+              {w.projects.length === 0 && (
+                <section className="onboarding-guide">
+                  <div className="onboarding-header">
+                    <span className="eyebrow">QUICK START GUIDE</span>
+                    <h2>Welcome to your private workspace</h2>
+                    <p>Here’s how to get up and running in 3 quick steps:</p>
+                  </div>
+                  <div className="onboarding-steps">
+                    <div className="onboarding-step">
+                      <span className="step-num">1</span>
+                      <div>
+                        <strong>Create a project</strong>
+                        <p>Set up a client name, hourly rate, and color tag.</p>
+                        <button
+                          className="button primary sm"
+                          onClick={() => setModal({ type: 'project' })}
+                        >
+                          <Plus size={14} /> Add project
+                        </button>
+                      </div>
+                    </div>
+                    <div className="onboarding-step">
+                      <span className="step-num">2</span>
+                      <div>
+                        <strong>Track your hours</strong>
+                        <p>Use the live timer or log completed sessions manually.</p>
+                      </div>
+                    </div>
+                    <div className="onboarding-step">
+                      <span className="step-num">3</span>
+                      <div>
+                        <strong>Use as an app (PWA)</strong>
+                        <p>On iOS, tap Share → “Add to Home Screen” for instant access.</p>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              )}
               {(view === 'Overview' || view === 'Time tracker') && (
                 <section
                   className={`timer-card ${w.timer ? 'is-running' : ''}`}
