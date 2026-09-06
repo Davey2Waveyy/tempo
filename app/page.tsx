@@ -1,6 +1,14 @@
 'use client';
 import Link from 'next/link';
 import { AuthScreen, type CurrentUser } from '@/components/auth-screen';
+import {
+  QuickActions,
+  RecentWork,
+  DayNavigator,
+  BudgetAttention,
+  TimerDock,
+} from '@/components/workspace-tools';
+import { projectHours } from '@/lib/workspace-insights';
 import { AdminPanel } from '@/components/admin-panel';
 import {
   useCallback,
@@ -642,6 +650,8 @@ export default function Home() {
     text: string;
   } | null>(null);
   const [week, setWeek] = useState(0);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [projectQuery, setProjectQuery] = useState('');
   const [search, setSearch] = useState('');
   const [projectFilter, setProjectFilter] = useState('all');
   const [billFilter, setBillFilter] = useState('all');
@@ -654,10 +664,10 @@ export default function Home() {
     setSnapshot(s);
   }, []);
   const load = useCallback(async () => {
-    const epoch=authEpoch.current;
+    const epoch = authEpoch.current;
     try {
       const me = await fetch('/api/auth/me', { cache: 'no-store' });
-      if(epoch!==authEpoch.current)return;
+      if (epoch !== authEpoch.current) return;
       if (me.status === 401) {
         snapshotRef.current = null;
         setSnapshot(null);
@@ -672,14 +682,16 @@ export default function Home() {
       const currentUser = (await me.json()) as CurrentUser;
       setUser(currentUser);
       const r = await fetch('/api/workspace', { cache: 'no-store' });
-      if(epoch!==authEpoch.current)return;
+      if (epoch !== authEpoch.current) return;
       if (r.status === 401) {
-        snapshotRef.current=null;setSnapshot(null);setUser(null);
+        snapshotRef.current = null;
+        setSnapshot(null);
+        setUser(null);
         setAuthRequired(true);
         return;
       }
       const s = (await r.json()) as Snapshot & { error?: string };
-      if(epoch!==authEpoch.current)return;
+      if (epoch !== authEpoch.current) return;
       if (!r.ok) throw new Error(s.error || 'Could not load your workspace.');
       setAuthRequired(false);
       if (!lock.current) apply(s);
@@ -828,6 +840,7 @@ export default function Home() {
   const visibleEntries = periodEntries
     .filter(
       (e) =>
+        (view !== 'Time tracker' || !selectedDay || e.date === selectedDay) &&
         (projectFilter === 'all' || e.projectId === projectFilter) &&
         (billFilter === 'all' || e.billable === (billFilter === 'billable')) &&
         `${e.description} ${projects.find((p) => p.id === e.projectId)?.client} ${projects.find((p) => p.id === e.projectId)?.name}`
@@ -859,6 +872,8 @@ export default function Home() {
   };
   const go = (next: string) => {
     setView(next);
+    setSelectedDay(null);
+    setProjectQuery('');
     setSearch('');
     setProjectFilter('all');
     setBillFilter('all');
@@ -876,24 +891,46 @@ export default function Home() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     setNotice(`Exported ${visibleEntries.length} entries.`);
   };
+  const allProjectHours = projectHours(entries);
+  const periodProjectHours = projectHours(periodEntries);
   const totalsFor = (id: string, period = false) =>
-    (period ? periodEntries : entries)
-      .filter((e) => e.projectId === id)
-      .reduce((a, e) => a + e.seconds / 3600, 0);
+    (period ? periodProjectHours : allProjectHours).get(id) || 0;
+  const openProjectTime = (id: string) => {
+    go('Time tracker');
+    setProjectFilter(id);
+  };
+  const resumeTask = async (entry: Entry) => {
+    if (w?.timer || busy) return;
+    const saved = await mutate('startTimer', {
+      description: entry.description,
+      projectId: entry.projectId,
+      billable: entry.billable,
+      date: dateKey(new Date()),
+    });
+    if (saved) {
+      setDescription(entry.description);
+      setTimerProject(entry.projectId);
+      setTimerBillable(entry.billable);
+    }
+  };
+  const changeWeek = (value: number) => {
+    setSelectedDay(null);
+    setWeek(value);
+  };
   const weekLabel = `${new Date(dates[0] + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(dates[6] + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
   const periodControl = (
     <div className="week-control">
-      <button aria-label="Previous week" onClick={() => setWeek((v) => v - 1)}>
+      <button aria-label="Previous week" onClick={() => changeWeek(week - 1)}>
         <ChevronLeft size={16} />
       </button>
       <button
         className="week-label"
         title="Return to current week"
-        onClick={() => setWeek(0)}
+        onClick={() => changeWeek(0)}
       >
         {week === 0 ? 'This week' : weekLabel}
       </button>
-      <button aria-label="Next week" onClick={() => setWeek((v) => v + 1)}>
+      <button aria-label="Next week" onClick={() => changeWeek(week + 1)}>
         <ChevronRight size={16} />
       </button>
     </div>
@@ -918,21 +955,22 @@ export default function Home() {
             {rows.map((e) => {
               const p = projects.find((p) => p.id === e.projectId);
               return (
-                <TableRow
-                  key={e.id}
-                  className="entry-row"
-                  onClick={() => {
-                    setError('');
-                    setModal({ type: 'entry', entry: e });
-                  }}
-                >
+                <TableRow key={e.id} className="entry-row">
                   <TableCell>
                     <div className="entry-work">
                       <span className={`project-icon color-${p?.color || 0}`}>
                         {p?.client[0]}
                       </span>
                       <div>
-                        <strong>{e.description}</strong>
+                        <button
+                          className="entry-edit-link"
+                          onClick={() => {
+                            setError('');
+                            setModal({ type: 'entry', entry: e });
+                          }}
+                        >
+                          {e.description}
+                        </button>
                         <small>
                           <span className={`dot color-${p?.color || 0}`} />
                           {p?.name} <span className="separator">/</span>{' '}
@@ -1008,7 +1046,23 @@ export default function Home() {
     return (
       <AuthScreen
         onUnlock={(currentUser) => {
-          authEpoch.current++;setDescription('');setTimerProject('');setTimerBillable(true);setSearch('');setProjectFilter('all');setBillFilter('all');setView('Overview');setWeek(0);setInvoice(null);setModal(null);setConfirm(null);setNotice('');setError('');setAdminOpen(false);
+          authEpoch.current++;
+          setDescription('');
+          setTimerProject('');
+          setTimerBillable(true);
+          setSearch('');
+          setProjectFilter('all');
+          setBillFilter('all');
+          setView('Overview');
+          setWeek(0);
+          setSelectedDay(null);
+          setProjectQuery('');
+          setInvoice(null);
+          setModal(null);
+          setConfirm(null);
+          setNotice('');
+          setError('');
+          setAdminOpen(false);
           setUser(currentUser);
           setAuthRequired(false);
           void load();
@@ -1121,6 +1175,16 @@ export default function Home() {
             <ChevronRight size={14} />
             <strong>{view}</strong>
           </div>
+          {w && (
+            <QuickActions
+              projects={projects}
+              onNavigate={go}
+              onLog={openEntry}
+              onProject={() => setModal({ type: 'project' })}
+              onSettings={() => setModal({ type: 'settings' })}
+              onProjectTime={openProjectTime}
+            />
+          )}
           <span className="saved">
             <i />
             {busy ? 'Saving…' : w ? 'Saved to your workspace' : 'Connecting…'}
@@ -1234,14 +1298,19 @@ export default function Home() {
                       <span className="step-num">2</span>
                       <div>
                         <strong>Track your hours</strong>
-                        <p>Use the live timer or log completed sessions manually.</p>
+                        <p>
+                          Use the live timer or log completed sessions manually.
+                        </p>
                       </div>
                     </div>
                     <div className="onboarding-step">
                       <span className="step-num">3</span>
                       <div>
                         <strong>Use as an app (PWA)</strong>
-                        <p>On iOS, tap Share → “Add to Home Screen” for instant access.</p>
+                        <p>
+                          On iOS, tap Share → “Add to Home Screen” for instant
+                          access.
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -1249,6 +1318,7 @@ export default function Home() {
               )}
               {(view === 'Overview' || view === 'Time tracker') && (
                 <section
+                  data-main-timer
                   className={`timer-card ${w.timer ? 'is-running' : ''}`}
                 >
                   <div className="timer-copy">
@@ -1353,6 +1423,14 @@ export default function Home() {
                   </div>
                 </section>
               )}
+              {(view === 'Overview' || view === 'Time tracker') && !w.timer && (
+                <RecentWork
+                  entries={entries}
+                  projects={projects}
+                  busy={busy}
+                  onStart={(entry) => void resumeTask(entry)}
+                />
+              )}
               {view !== 'Projects' && (
                 <>
                   <div className="period-row">
@@ -1389,7 +1467,9 @@ export default function Home() {
                     ].map(([label, v, sub], i) => (
                       <div className="stat" key={label}>
                         <span>
-                          {i === 0 && week !== 0 ? 'Hours this week' : label}
+                          {i === 0 && week !== 0
+                            ? 'Hours in selected week'
+                            : label}
                           <ArrowUpRight size={16} />
                         </span>
                         <strong>{v}</strong>
@@ -1408,6 +1488,17 @@ export default function Home() {
               )}
               {view === 'Overview' && (
                 <>
+                  <BudgetAttention
+                    projects={projects}
+                    entries={entries}
+                    onOpen={(id) => {
+                      setError('');
+                      setModal({
+                        type: 'project',
+                        project: projects.find((p) => p.id === id),
+                      });
+                    }}
+                  />
                   <div className="overview-grid">
                     <section className="panel week-panel">
                       <div className="section-heading">
@@ -1604,6 +1695,12 @@ export default function Home() {
                       <Download size={15} /> Export CSV
                     </button>
                   </div>
+                  <DayNavigator
+                    dates={dates}
+                    entries={periodEntries}
+                    selected={selectedDay}
+                    onSelect={setSelectedDay}
+                  />
                   <div className="filters">
                     <div className="search-input">
                       <Search size={16} />
@@ -1637,6 +1734,30 @@ export default function Home() {
                       ]}
                     />
                   </div>
+                  {(selectedDay ||
+                    search ||
+                    projectFilter !== 'all' ||
+                    billFilter !== 'all') && (
+                    <div className="active-filter-summary">
+                      <span>
+                        {visibleEntries.length} matching{' '}
+                        {visibleEntries.length === 1 ? 'entry' : 'entries'}
+                        {selectedDay
+                          ? ` · ${new Date(selectedDay + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}`
+                          : ''}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setSelectedDay(null);
+                          setSearch('');
+                          setProjectFilter('all');
+                          setBillFilter('all');
+                        }}
+                      >
+                        Clear filters
+                      </button>
+                    </div>
+                  )}
                   {table(visibleEntries)}
                   <div className="table-footer">
                     <span>{visibleEntries.length} entries in this view</span>
@@ -1668,9 +1789,24 @@ export default function Home() {
                       Show archived
                     </label>
                   </div>
+                  <div className="project-search search-input">
+                    <Search size={16} />
+                    <input
+                      aria-label="Search projects and clients"
+                      placeholder="Find a project or client…"
+                      value={projectQuery}
+                      onChange={(e) => setProjectQuery(e.target.value)}
+                    />
+                  </div>
                   <div className="project-grid">
                     {projects
-                      .filter((p) => showArchived || !p.archived)
+                      .filter(
+                        (p) =>
+                          (showArchived || !p.archived) &&
+                          `${p.name} ${p.client}`
+                            .toLowerCase()
+                            .includes(projectQuery.toLowerCase()),
+                      )
                       .map((p) => {
                         const h = totalsFor(p.id),
                           pct = Math.round((h / p.budget) * 100);
@@ -2066,6 +2202,25 @@ export default function Home() {
       )}
       {user?.role === 'owner' && (
         <AdminPanel open={adminOpen} onClose={() => setAdminOpen(false)} />
+      )}
+      {w?.timer && (
+        <TimerDock
+          key={view}
+          timer={w.timer}
+          project={projects.find((p) => p.id === w.timer?.projectId)}
+          currency={w.currency}
+          busy={busy}
+          hasMainTimer={view === 'Overview' || view === 'Time tracker'}
+          onOpen={() => {
+            go('Time tracker');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onStop={() =>
+            void mutate('stopTimer').then((ok) => {
+              if (ok) setDescription('');
+            })
+          }
+        />
       )}
     </SidebarProvider>
   );
