@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Search,
   Plus,
@@ -56,6 +56,7 @@ export function QuickActions({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const commandInput = useRef<HTMLInputElement>(null);
   const changeOpen = (value: boolean) => {
     setOpen(value);
     if (value) setQuery('');
@@ -89,7 +90,11 @@ export function QuickActions({
         </kbd>
       </button>
       <Dialog open={open} onOpenChange={changeOpen}>
-        <DialogContent className="quick-action-dialog" showCloseButton={false}>
+        <DialogContent
+          className="quick-action-dialog"
+          initialFocus={commandInput}
+          showCloseButton={false}
+        >
           <DialogTitle className="sr-only">Quick actions</DialogTitle>
           <DialogDescription className="sr-only">
             Search actions and projects. Use arrow keys to move and Enter to
@@ -97,6 +102,7 @@ export function QuickActions({
           </DialogDescription>
           <Command>
             <CommandInput
+              ref={commandInput}
               value={query}
               onValueChange={setQuery}
               placeholder="What would you like to do?"

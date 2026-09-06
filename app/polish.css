@@ -1,0 +1,961 @@
+/* Tempo's visual system. Shared surfaces, hierarchy, and interaction states. */
+:root {
+  --background: #f4f6fa;
+  --foreground: #243249;
+  --card: #ffffff;
+  --primary: #395de0;
+  --muted: #eef2f8;
+  --border: #e0e6ef;
+  --sidebar: #14243c;
+  --ink-soft: #65748b;
+  --ink-light: #7b8a9e;
+  --surface-shadow: 0 3px 5px #18335402, 0 10px 30px #18335404;
+}
+body {
+  color: var(--foreground);
+}
+::selection {
+  background: #c8d7ff;
+  color: #172b50;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #94b0ff;
+  outline-offset: 3px;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+/* A permanent, quiet anchor for the workspace. */
+[data-slot='sidebar-inner'],
+[data-slot='sidebar'][data-mobile='true'] {
+  background: linear-gradient(165deg, #182c49 0%, #13243c 55%, #111f34 100%);
+  color: #d3dceb;
+}
+[data-slot='sidebar-container'] {
+  border-color: #13243c;
+}
+[data-slot='sidebar-header'] .brand {
+  color: #fff;
+  font-size: 36px;
+  padding: 24px 20px 27px;
+  letter-spacing: -2px;
+}
+.workspace {
+  background: #ffffff05;
+  border-color: #ffffff14;
+  border-radius: 10px;
+  color: #e1e8f5;
+  margin-bottom: 30px;
+  padding: 13px 10px;
+}
+.workspace small {
+  color: #91a3bf;
+  font-size: 10px;
+}
+.workspace-icon {
+  background: #38527a;
+  color: #d5e3ff;
+  border-radius: 8px;
+}
+.nav-label {
+  color: #8295b3;
+  font-size: 10px;
+  letter-spacing: 1.8px;
+}
+.nav-item {
+  color: #aebed5;
+  height: 46px;
+  border-radius: 8px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  padding-left: 14px;
+  font-size: 14px;
+  transition:
+    background 0.18s,
+    color 0.18s;
+}
+.nav-item:hover {
+  background: #ffffff08;
+  color: #fff;
+}
+.nav-item[data-active] {
+  background: #334f80;
+  color: #fff;
+  box-shadow: inset 3px 0 #9bbcff;
+}
+.nav-item[data-active] svg {
+  color: #b8d2ff;
+}
+.nav-item .live-dot {
+  background: #a9e7ca;
+}
+.sidebar-note {
+  color: #b1c1d9;
+}
+.sidebar-note svg {
+  color: #96b4e2;
+}
+.sidebar-note h3 {
+  color: #cbd8ea;
+  font-size: 13px;
+  font-weight: 600;
+}
+.sidebar-note p {
+  color: #859ab8;
+  font-size: 12px;
+}
+[data-slot='sidebar-footer'] {
+  padding: 12px;
+  gap: 8px;
+}
+.profile {
+  color: #e4ebf6;
+  border-color: #ffffff14;
+  padding: 16px 4px 8px;
+  font-size: 13px;
+}
+.profile small {
+  color: #91a4bf;
+  font-size: 11px;
+}
+.profile svg {
+  color: #9aaecb;
+}
+.profile .avatar {
+  background: #3b5274;
+  color: #e5eeff;
+  width: 35px;
+  height: 35px;
+}
+.sidebar-logout {
+  background: #ffffff04;
+  border: 1px solid #ffffff12;
+  color: #9eafc8;
+  border-radius: 7px;
+  font-size: 12px;
+}
+.sidebar-logout:hover {
+  background: #ffffff0a;
+  color: #fff;
+  border-color: #ffffff25;
+}
+/* Type and space lead; boundaries stay deliberately light. */
+.main {
+  background:
+    radial-gradient(ellipse at 100% 0%, #e9effa66, transparent 38%),
+    var(--background);
+}
+.topbar {
+  background: #ffffffdd;
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid #e2e8f0;
+  height: 72px;
+  position: sticky;
+  top: 0;
+  z-index: 25;
+}
+.topbar > div {
+  color: #8692a5;
+  font-size: 12px;
+}
+.topbar strong {
+  color: #3b4b63;
+}
+.saved {
+  color: #71839a;
+  font-size: 11px;
+}
+.saved i {
+  background: #73ad94;
+  box-shadow: 0 0 0 3px #73ad9410;
+}
+.content {
+  max-width: 1440px;
+  padding: 37px 42px 48px;
+}
+.page-heading {
+  margin-bottom: 29px;
+}
+.page-heading .eyebrow {
+  color: #7b8ca6;
+  font-size: 10px;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+.page-heading h1 {
+  font-family: 'Newsreader', Georgia, serif;
+  font-optical-sizing: auto;
+  font-size: clamp(32px, 2.9vw, 43px);
+  font-weight: 400;
+  letter-spacing: -1.15px;
+  line-height: 1.16;
+  color: #243751;
+}
+.page-heading p {
+  color: #74829a;
+  font-size: 14px;
+  line-height: 1.7;
+  margin-top: 10px;
+}
+.button {
+  border-color: #dce4ef;
+  border-radius: 8px;
+  color: #506079;
+  font-size: 13px;
+  padding: 10px 16px;
+  min-height: 41px;
+  box-shadow: 0 2px 3px #1a315c04;
+  transition:
+    background 0.18s,
+    box-shadow 0.18s,
+    border-color 0.18s;
+}
+.button:hover {
+  border-color: #adbde0;
+  background: #f8faff;
+  box-shadow: 0 3px 8px #1a315c08;
+}
+.button.primary,
+.page-heading > .button {
+  background: #3558d4;
+  color: #fff;
+  border-color: #3558d4;
+  box-shadow: 0 4px 10px #3558d41c;
+}
+.button.primary:hover,
+.page-heading > .button:hover {
+  background: #294abb;
+  border-color: #294abb;
+}
+/* The timer is the focal point: cobalt, luminous numbers, and a clear action. */
+.timer-card {
+  background: linear-gradient(115deg, #3455ce 0%, #4265df 60%, #4e75e8 100%);
+  border: 1px solid #ffffff24;
+  border-radius: 16px;
+  padding: 28px 31px;
+  min-height: 166px;
+  box-shadow:
+    0 7px 18px #3455ce18,
+    inset 0 1px #ffffff13;
+  overflow: hidden;
+}
+.timer-card::after {
+  content: '';
+  position: absolute;
+  width: 430px;
+  height: 430px;
+  border: 1px solid #ffffff0d;
+  border-radius: 50%;
+  right: -120px;
+  top: -155px;
+  box-shadow:
+    0 0 0 35px #ffffff03,
+    0 0 0 70px #ffffff03,
+    0 0 0 105px #ffffff02;
+  pointer-events: none;
+}
+.timer-copy,
+.timer-control {
+  position: relative;
+  z-index: 1;
+}
+.timer-card .eyebrow {
+  color: #c2d3ff;
+  font-size: 10px;
+  letter-spacing: 1.7px;
+  margin-bottom: 10px;
+}
+.timer-description {
+  font-size: 23px;
+  font-weight: 400;
+  color: #fff;
+  border-bottom-color: #ffffff2b;
+  padding-bottom: 8px;
+}
+.timer-description::placeholder {
+  color: #d5dfff;
+}
+.timer-description:focus {
+  border-bottom-color: #e2eaff;
+  box-shadow: 0 1px #e2eaff;
+}
+.timer-control > span {
+  font-family: 'Manrope', sans-serif;
+  font-size: 40px;
+  font-weight: 400;
+  letter-spacing: 0.7px;
+  font-variant-numeric: tabular-nums;
+}
+.timer-control > button {
+  width: 57px;
+  height: 57px;
+  background: #ecf7e9;
+  color: #3354bf;
+  box-shadow:
+    0 0 0 8px #ffffff10,
+    0 5px 14px #20399525;
+}
+.timer-control > button:hover {
+  background: #fff;
+  box-shadow:
+    0 0 0 11px #ffffff16,
+    0 5px 18px #20399530;
+}
+.timer-options .picker {
+  border-color: #ffffff30;
+  background: #ffffff12;
+  color: #f4f7ff;
+  font-size: 12px;
+  border-radius: 7px;
+}
+.timer-options .picker:hover {
+  background: #ffffff20;
+  border-color: #ffffff50;
+}
+.timer-project-label {
+  color: #c5d4fc;
+}
+.timer-options label {
+  color: #e0eaff;
+  font-size: 12px;
+}
+.timer-options [data-slot='switch'][data-checked] {
+  background: #c6ebca;
+}
+.is-running {
+  background: linear-gradient(115deg, #2544b2, #3d5ed1 65%, #5377dd);
+}
+/* A unified summary band avoids a wall of competing boxes. */
+.stats {
+  background: #fff;
+  border: 1px solid #e1e7f0;
+  border-radius: 13px;
+  gap: 0;
+  padding: 7px 0;
+  overflow: hidden;
+  box-shadow: var(--surface-shadow);
+}
+.stat {
+  border: 0;
+  border-right: 1px solid #edf0f5;
+  border-radius: 0;
+  min-height: 135px;
+  padding: 18px 24px;
+  background: transparent;
+}
+.stat:last-child {
+  border-right: 0;
+}
+.stats .stat > span {
+  color: #7a889e;
+  font-size: 12px;
+}
+.stat > span svg {
+  width: 13px;
+  color: #a4b2c7;
+}
+.stat > strong {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.8px;
+  color: #263b58;
+  margin: 12px 0 6px;
+}
+.stat small {
+  color: #8592a6;
+  font-size: 11px;
+}
+.goal-progress {
+  margin-top: 11px;
+}
+.goal-progress [data-slot='progress-track'] {
+  background: #eef2fa;
+}
+.goal-progress [data-slot='progress-indicator'] {
+  background: #7f9ced;
+}
+.panel {
+  border-color: #e0e7f0;
+  border-radius: 13px;
+  box-shadow: var(--surface-shadow);
+  padding: 24px 26px;
+}
+.section-heading h2 {
+  color: #31425b;
+  font-size: 16px;
+  letter-spacing: -0.35px;
+  font-weight: 700;
+}
+.count {
+  background: #eef2f8;
+  border-radius: 5px;
+  color: #8a98ae;
+  font-size: 10px;
+}
+.section-heading > span {
+  color: #8290a4;
+  font-size: 12px;
+}
+.text-button {
+  color: #6a7fa0;
+  font-size: 12px;
+}
+.text-button:hover {
+  color: #3558d4;
+}
+.bar {
+  background: linear-gradient(to top, #a6b9ed, #7f9ce8);
+  border-radius: 5px 5px 0 0;
+}
+.bar.today,
+.chart-col:nth-child(5) .bar {
+  background: linear-gradient(to top, #6989df, #3e61cf);
+}
+.bar-other {
+  background: #dbe4f8;
+}
+.chart-footer {
+  color: #8d9ab0;
+}
+.project-icon {
+  border-radius: 10px;
+  background: #e9efff;
+  color: #5f7aca;
+}
+.project-icon.color-1 {
+  background: #f8eade;
+  color: #ad835d;
+}
+.project-icon.color-2 {
+  background: #e4f1e9;
+  color: #56856b;
+}
+.project-icon.color-3 {
+  background: #efe9f6;
+  color: #9375b1;
+}
+.project-pulse {
+  padding-top: 22px;
+}
+.project-pulse strong {
+  font-weight: 550;
+  font-size: 13px;
+  color: #52617a;
+}
+.project-pulse small {
+  color: #8c9aaf;
+  font-size: 11px;
+}
+.project-progress [data-slot='progress-track'] {
+  height: 4px;
+}
+.entry-table th {
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  color: #94a1b4;
+  font-weight: 500;
+}
+.entry-table td {
+  padding-top: 18px;
+  padding-bottom: 18px;
+  border-color: #edf1f6;
+}
+.entry-edit-link {
+  color: #445773;
+  font-size: 13px;
+  font-weight: 500;
+}
+.entry-work small {
+  color: #8b9ab1;
+  font-size: 11px;
+}
+.entry-duration {
+  color: #344864;
+}
+.billable {
+  color: #527c61;
+  background: #eef6ef;
+  border-radius: 5px;
+  font-size: 10px;
+}
+.entry-table tbody tr:hover {
+  background: #f8faff;
+}
+.entries-panel {
+  padding-bottom: 12px;
+}
+/* Supporting controls share the same spacing, color, and weight. */
+.quick-action-trigger {
+  border-color: #e3e9f2;
+  background: #f7f9fc;
+  color: #8392a8;
+  border-radius: 8px;
+}
+.quick-action-trigger kbd {
+  background: #fff;
+  border-color: #e0e7f1;
+}
+.recent-work-heading {
+  color: #8391a8;
+  font-size: 11px;
+}
+.recent-work-item {
+  border-color: #e2e9f3;
+  border-radius: 10px;
+  box-shadow: 0 2px 3px #18335402;
+}
+.recent-work-item:hover {
+  border-color: #a5b8e3;
+  box-shadow: 0 4px 12px #18335408;
+}
+.recent-work-item strong {
+  color: #596d8b;
+}
+.recent-work-item small {
+  color: #92a2b9;
+}
+.period-row {
+  color: #8592a7;
+}
+.week-control {
+  border-color: #e0e7f1;
+  border-radius: 8px;
+  box-shadow: 0 2px 3px #18335403;
+}
+.week-control .week-label {
+  color: #687b98;
+  font-size: 12px;
+}
+.budget-attention {
+  background: #fffdf8;
+  border-color: #e9dec9;
+  border-radius: 12px;
+  box-shadow: 0 2px 3px #59431a02;
+}
+.attention-heading > span {
+  color: #9a7e4e;
+}
+.attention-items strong {
+  color: #807058;
+}
+.attention-items small {
+  color: #a69a85;
+}
+.day-navigator button {
+  background: #f8fafd;
+  border-color: #e6ecf4;
+  border-radius: 8px;
+  padding-top: 13px;
+  padding-bottom: 13px;
+}
+.day-navigator button.selected {
+  border-color: #9db3e7;
+  background: #edf3ff;
+  box-shadow: inset 0 2px #6587de;
+}
+.day-navigator strong {
+  color: #6b7e9b;
+}
+.search-input {
+  border-color: #e1e7f1;
+  background: #fff;
+  border-radius: 8px;
+}
+.search-input:focus-within {
+  border-color: #99ade0;
+  box-shadow: 0 0 0 3px #4568d708;
+}
+.search-input input {
+  height: 40px;
+}
+.picker {
+  border-color: #e0e7f1;
+  min-height: 40px;
+  color: #596d8b;
+}
+.project-card {
+  padding: 27px;
+}
+.project-card h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: #354966;
+}
+.project-card .client-name {
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8a9cb4;
+}
+.project-card-top > .project-icon {
+  width: 45px;
+  height: 45px;
+  border-radius: 12px;
+}
+.project-budget-label {
+  margin-top: 31px;
+}
+.project-card-bottom {
+  border-color: #e9eef6;
+}
+.project-card-bottom > span {
+  color: #496080;
+}
+.new-project-card {
+  border-color: #cbd6e8;
+  border-radius: 13px;
+  background: #ffffff45;
+  color: #8193b0;
+}
+.new-project-card:hover {
+  background: #f0f5ff;
+  border-color: #93a9d7;
+}
+.report-banner {
+  border-color: #dce5f7;
+  background: linear-gradient(115deg, #edf2fd, #f5f8ff);
+  border-radius: 13px;
+  padding: 28px;
+}
+.report-banner h2 {
+  color: #435f98;
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 27px;
+  font-weight: 400;
+  letter-spacing: -0.45px;
+}
+.report-banner p {
+  color: #8295b6;
+  font-size: 13px;
+}
+.report-table th {
+  font-size: 11px;
+  color: #8a9bb3;
+}
+.report-table td {
+  color: #647b9a;
+}
+.tempo-dialog {
+  border-radius: 16px;
+  box-shadow: 0 25px 100px #11233e30;
+}
+.tempo-dialog [data-slot='dialog-title'] {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 29px;
+  font-weight: 400;
+  color: #304968;
+}
+.tempo-dialog [data-slot='dialog-description'] {
+  color: #8697af;
+  font-size: 13px;
+}
+.form input {
+  border-radius: 8px;
+  border-color: #dce5f0;
+  background: #fcfdff;
+  min-height: 44px;
+}
+.form label,
+.form-field {
+  color: #677e9c;
+  font-size: 13px;
+}
+.form-note {
+  color: #8397b3;
+}
+.feedback {
+  border-radius: 9px;
+  font-size: 12px;
+  padding: 12px 15px;
+}
+.timer-dock {
+  background: #193252f5;
+  border-color: #ffffff20;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 12px 40px #12244035;
+  border-radius: 14px;
+}
+.dock-stop {
+  background: #e8f3e8;
+  color: #315a53;
+}
+.dock-stop:hover {
+  background: #fff;
+}
+.workspace-footer {
+  color: #9aa8bc;
+  font-size: 11px;
+}
+.onboarding-guide {
+  background: #fff;
+  border-color: #dce5f1;
+  border-radius: 14px;
+  box-shadow: var(--surface-shadow);
+}
+/* A focused sign-in surface, visually connected to the workspace. */
+.pin-gate {
+  background:
+    radial-gradient(ellipse at 20% 5%, #2a4470, transparent 55%),
+    radial-gradient(ellipse at 95% 100%, #233d69, transparent 60%), #13243c;
+  min-height: 100svh;
+}
+.pin-card.auth-card {
+  border: 1px solid #ffffff66;
+  border-radius: 22px;
+  box-shadow: 0 25px 90px #06122650;
+  padding: 37px;
+  width: min(460px, calc(100vw - 32px));
+}
+.auth-card .brand {
+  color: #263c5a;
+  font-size: 36px;
+  letter-spacing: -2px;
+}
+.auth-key {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  background: #edf3fd;
+  color: #4b70c9;
+  border: 1px solid #e1eafa;
+}
+.auth-card h1 {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 34px;
+  line-height: 1.2;
+  letter-spacing: -0.7px;
+  font-weight: 400;
+  color: #2c4565;
+}
+.auth-card .form-note {
+  font-size: 13px;
+  line-height: 1.75;
+  color: #8597b1;
+}
+.auth-card .pin-input {
+  border-color: #dfe7f1;
+  border-radius: 9px;
+  min-height: 48px;
+  background: #fafcff;
+  color: #35506f;
+}
+.auth-card .button.primary {
+  min-height: 47px;
+  border-radius: 9px;
+}
+.auth-label {
+  color: #6982a2;
+}
+.auth-switch {
+  color: #5376bb;
+}
+.auth-footnote {
+  color: #97a8be;
+}
+@media (min-width: 1600px) {
+  .content {
+    padding-top: 45px;
+  }
+  .timer-card {
+    min-height: 180px;
+  }
+}
+@media (max-width: 1150px) {
+  .content {
+    padding: 31px 26px 45px;
+  }
+  .timer-control > span {
+    font-size: 33px;
+  }
+  .stat {
+    padding: 18px 17px;
+  }
+  .panel {
+    padding: 22px;
+  }
+  .page-heading h1 {
+    font-size: 35px;
+  }
+  .project-card {
+    padding: 25px;
+  }
+}
+@media (max-width: 950px) {
+  .stats {
+    padding: 0;
+  }
+  .stat {
+    min-height: 139px;
+  }
+  .stat:nth-child(2) {
+    border-right: 0;
+  }
+  .stat:nth-child(-n + 2) {
+    border-bottom: 1px solid #edf0f5;
+  }
+}
+@media (max-width: 767px) {
+  .topbar {
+    height: 61px;
+    padding: 0 18px;
+  }
+  .topbar > div {
+    font-size: 12px;
+  }
+  .content {
+    padding: 28px 18px 40px;
+  }
+  .page-heading {
+    margin-bottom: 24px;
+    gap: 12px;
+  }
+  .page-heading h1 {
+    font-size: 33px;
+    line-height: 1.12;
+    letter-spacing: -0.8px;
+  }
+  .page-heading p {
+    font-size: 13px;
+    line-height: 1.65;
+    margin-top: 11px;
+  }
+  .page-heading .eyebrow {
+    font-size: 9px;
+    letter-spacing: 1.7px;
+  }
+  .page-heading > .button {
+    min-width: 40px;
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+    padding: 10px;
+    margin-top: 17px;
+    font-size: 0;
+  }
+  .timer-card {
+    padding: 23px;
+    border-radius: 14px;
+    gap: 21px;
+  }
+  .timer-card::after {
+    right: -210px;
+    top: -90px;
+  }
+  .timer-description {
+    font-size: 21px;
+  }
+  .timer-control > span {
+    font-size: 38px;
+  }
+  .timer-control > button {
+    width: 51px;
+    height: 51px;
+    box-shadow: 0 0 0 7px #ffffff10;
+  }
+  .timer-options .timer-project .picker {
+    min-height: 37px;
+  }
+  .timer-options {
+    gap: 13px;
+  }
+  .stats {
+    border-radius: 12px;
+    gap: 0;
+  }
+  .stat {
+    padding: 18px 17px;
+    min-height: 135px;
+  }
+  .stat > strong {
+    font-size: 28px;
+  }
+  .stats .stat > span {
+    font-size: 11px;
+  }
+  .stat small {
+    font-size: 11px;
+    line-height: 1.55;
+  }
+  .panel {
+    padding: 21px 18px;
+    border-radius: 12px;
+  }
+  .entries-panel {
+    padding-bottom: 13px;
+  }
+  .section-heading h2 {
+    font-size: 15px;
+  }
+  .day-navigator button {
+    padding: 11px 8px;
+  }
+  .day-navigator button > span {
+    font-size: 11px;
+  }
+  .day-navigator strong {
+    font-size: 11px;
+  }
+  .quick-action-trigger {
+    background: transparent;
+  }
+  .project-card {
+    padding: 23px;
+  }
+  .project-card h2 {
+    font-size: 22px;
+  }
+  .report-banner {
+    padding: 24px;
+  }
+  .report-banner h2 {
+    font-size: 25px;
+  }
+  .tempo-dialog {
+    padding: 25px !important;
+    border-radius: 15px;
+  }
+  .tempo-dialog [data-slot='dialog-title'] {
+    font-size: 27px;
+  }
+  .pin-card.auth-card {
+    padding: 29px;
+    border-radius: 18px;
+  }
+  .auth-card h1 {
+    font-size: 32px;
+  }
+  .auth-card .brand {
+    font-size: 33px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+  }
+}
+@media print {
+  body,
+  .main {
+    background: #fff !important;
+  }
+  .topbar,
+  .timer-dock {
+    display: none !important;
+  }
+}
+/* Secondary copy remains readable on the light working surfaces. */
+.page-heading p,
+.stats .stat > span,
+.stat small,
+.entry-work small,
+.project-pulse small,
+.recent-work-item small,
+.form-note,
+.auth-card .form-note,
+.auth-label,
+.form label,
+.form-field {
+  color: #64748b;
+}

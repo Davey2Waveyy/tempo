@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import './polish.css';
 import { PwaInstall } from '@/components/pwa-install';
 
 export const metadata: Metadata = {

@@ -311,6 +311,7 @@ try {
     modifiers: 4,
   });
   await wait("!!document.querySelector('[cmdk-input]')");
+  await wait('document.activeElement?.hasAttribute("cmdk-input")');
   await setInput('[cmdk-input]', 'Northstar');
   await wait("document.querySelectorAll('[cmdk-item]').length===1");
   await cdp('Input.dispatchKeyEvent', {
@@ -341,7 +342,13 @@ try {
     await evaluate('document.documentElement.scrollWidth<=window.innerWidth'),
     true,
   );
-  assert.equal(await evaluate(`(()=>{const p=document.querySelector('.timer-project').getBoundingClientRect();const b=document.querySelector('label[for="timer-billable"]').getBoundingClientRect();return b.top>=p.bottom||b.left>=p.right})()`),true,'Project picker and billable switch do not overlap');
+  assert.equal(
+    await evaluate(
+      `(()=>{const p=document.querySelector('.timer-project').getBoundingClientRect();const b=document.querySelector('label[for="timer-billable"]').getBoundingClientRect();return b.top>=p.bottom||b.left>=p.right})()`,
+    ),
+    true,
+    'Project picker and billable switch do not overlap',
+  );
   await screenshot('/tmp/tempo-timesheet-mobile.png');
   await click('.recent-work-item');
   await wait("!!document.querySelector('.timer-card.is-running')");
@@ -351,8 +358,13 @@ try {
     await evaluate('document.documentElement.scrollWidth<=window.innerWidth'),
     true,
   );
-  await new Promise(r=>setTimeout(r,350));
-  assert.equal(await evaluate("document.querySelector('.timer-dock').getBoundingClientRect().bottom<=innerHeight"),true);
+  await new Promise((r) => setTimeout(r, 350));
+  assert.equal(
+    await evaluate(
+      "document.querySelector('.timer-dock').getBoundingClientRect().bottom<=innerHeight",
+    ),
+    true,
+  );
   await screenshot('/tmp/tempo-timer-mobile.png');
   await click('[aria-label="Stop running timer and save"]');
   await wait("!document.querySelector('.timer-dock')");
