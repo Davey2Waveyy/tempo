@@ -62,6 +62,13 @@ export function QuickActions({
     if (value) setQuery('');
   };
   useEffect(() => {
+    if (!open) return;
+    // The dialog is mounted just after this render. Focusing on the next frame
+    // gives the top-right control the same immediate typing behavior as Cmd/Ctrl+K.
+    const frame = requestAnimationFrame(() => commandInput.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
+  useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -79,6 +86,7 @@ export function QuickActions({
   return (
     <>
       <button
+        type="button"
         className="quick-action-trigger"
         onClick={() => changeOpen(true)}
         aria-label="Search actions and projects"
@@ -90,11 +98,7 @@ export function QuickActions({
         </kbd>
       </button>
       <Dialog open={open} onOpenChange={changeOpen}>
-        <DialogContent
-          className="quick-action-dialog"
-          initialFocus={commandInput}
-          showCloseButton={false}
-        >
+        <DialogContent className="quick-action-dialog" showCloseButton={false}>
           <DialogTitle className="sr-only">Quick actions</DialogTitle>
           <DialogDescription className="sr-only">
             Search actions and projects. Use arrow keys to move and Enter to

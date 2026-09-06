@@ -184,12 +184,11 @@ button:disabled {
   margin-bottom: 12px;
 }
 .page-heading h1 {
-  font-family: 'Newsreader', Georgia, serif;
-  font-optical-sizing: auto;
-  font-size: clamp(32px, 2.9vw, 43px);
-  font-weight: 400;
-  letter-spacing: -1.15px;
-  line-height: 1.16;
+  font-family: 'Manrope', sans-serif;
+  font-size: clamp(31px, 2.7vw, 41px);
+  font-weight: 800;
+  letter-spacing: -1.9px;
+  line-height: 1.12;
   color: #243751;
 }
 .page-heading p {
@@ -621,10 +620,10 @@ button:disabled {
 }
 .report-banner h2 {
   color: #435f98;
-  font-family: 'Newsreader', Georgia, serif;
-  font-size: 27px;
-  font-weight: 400;
-  letter-spacing: -0.45px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -1.1px;
 }
 .report-banner p {
   color: #8295b6;
@@ -642,9 +641,10 @@ button:disabled {
   box-shadow: 0 25px 100px #11233e30;
 }
 .tempo-dialog [data-slot='dialog-title'] {
-  font-family: 'Newsreader', Georgia, serif;
-  font-size: 29px;
-  font-weight: 400;
+  font-family: 'Manrope', sans-serif;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -1.1px;
   color: #304968;
 }
 .tempo-dialog [data-slot='dialog-description'] {
@@ -722,11 +722,11 @@ button:disabled {
   border: 1px solid #e1eafa;
 }
 .auth-card h1 {
-  font-family: 'Newsreader', Georgia, serif;
-  font-size: 34px;
-  line-height: 1.2;
-  letter-spacing: -0.7px;
-  font-weight: 400;
+  font-family: 'Manrope', sans-serif;
+  font-size: 30px;
+  line-height: 1.18;
+  letter-spacing: -1.3px;
+  font-weight: 800;
   color: #2c4565;
 }
 .auth-card .form-note {
