@@ -959,3 +959,338 @@ button:disabled {
 .form-field {
   color: #64748b;
 }
+
+/* Shared meaning across feedback, budgets, and controls. */
+:root {
+  --status-success: #246442;
+  --status-success-surface: #edf7f0;
+  --status-warning: #805411;
+  --status-warning-surface: #fff8e8;
+  --status-error: #a52b39;
+  --status-error-surface: #fff0f2;
+  --status-info: #3159ad;
+  --status-info-surface: #edf3ff;
+}
+.feedback.success,
+.status:not(.archived):not(.warning):not(.error),
+.billable {
+  color: var(--status-success);
+  background: var(--status-success-surface);
+}
+.feedback.error,
+.status.error {
+  color: var(--status-error);
+  background: var(--status-error-surface);
+}
+.status.warning,
+.budget-attention {
+  color: var(--status-warning);
+  background: var(--status-warning-surface);
+}
+.budget-warning,
+.attention-heading > span,
+.attention-items strong,
+.attention-items small,
+.attention-heading small {
+  color: var(--status-warning);
+}
+.attention-indicator {
+  background: var(--status-warning);
+}
+.attention-indicator.over {
+  background: var(--status-error);
+}
+.setup-result {
+  color: var(--status-info);
+  background: var(--status-info-surface);
+}
+.status.archived {
+  color: #526078;
+  background: #eef2f8;
+}
+.entry-table th,
+.count,
+.section-heading > span,
+.chart-footer,
+.project-card .client-name,
+.report-banner p,
+.report-table th,
+.auth-footnote,
+.workspace-footer,
+.period-row,
+.active-filter-summary,
+.day-navigator button,
+.recent-work-heading,
+.recent-work-heading small,
+.topbar > div,
+.saved,
+.tempo-dialog [data-slot='dialog-description'] {
+  color: #526078;
+}
+:where(input, textarea, select, button, a, [tabindex]):focus-visible {
+  outline: 3px solid var(--status-info);
+  outline-offset: 3px;
+}
+.timer-card :focus-visible,
+.timer-dock :focus-visible,
+[data-slot='sidebar-inner'] :focus-visible {
+  outline-color: #d0dfff;
+}
+.icon-button,
+.feedback button {
+  min-width: 32px;
+  min-height: 32px;
+}
+.skip-link {
+  position: fixed;
+  left: 12px;
+  top: 12px;
+  transform: translateY(-160%);
+  z-index: 60;
+  padding: 12px 18px;
+  background: white;
+  color: #243249;
+  border-radius: 8px;
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+.workspace-loading {
+  display: block;
+}
+.workspace-skeleton {
+  display: grid;
+  gap: 24px;
+}
+.skeleton-block {
+  background: #e0e6ef;
+  border-radius: 6px;
+  animation: skeleton-pulse 1.6s ease-in-out infinite alternate;
+}
+.skeleton-timer {
+  min-height: 166px;
+  border-radius: 16px;
+}
+.skeleton-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+}
+.skeleton-label {
+  width: 45%;
+  height: 14px;
+  margin-bottom: 24px;
+}
+.skeleton-value {
+  width: 65%;
+  height: 34px;
+}
+.skeleton-project {
+  min-height: 285px;
+}
+.skeleton-row {
+  height: 40px;
+  margin-top: 18px;
+}
+@keyframes skeleton-pulse {
+  to {
+    opacity: 0.5;
+  }
+}
+
+/* Keep the project scope visible before any timer or totals. */
+.project-scope {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: #526078;
+  font-size: 13px;
+}
+.project-scope .scope-label {
+  font-weight: 600;
+}
+.project-scope .picker {
+  min-width: 220px;
+  max-width: 100%;
+}
+.project-scope > span:last-child {
+  font-size: 12px;
+}
+@media (max-width: 767px) {
+  .project-scope {
+    gap: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+  .project-scope .picker {
+    flex: 1;
+    min-width: 0;
+    width: 0;
+    min-height: 44px;
+  }
+  .project-scope > span:last-child {
+    flex-basis: 100%;
+    line-height: 1.5;
+  }
+  .icon-button,
+  .week-control button,
+  .quick-action-trigger,
+  .mobile-menu,
+  .feedback button,
+  .dock-stop {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .button,
+  .picker {
+    min-height: 44px;
+  }
+  .stats .stat {
+    min-height: 112px;
+    padding: 14px 16px;
+  }
+  .stat > strong {
+    margin: 8px 0 4px;
+  }
+  .search-input input,
+  .form input,
+  .form textarea {
+    font-size: 16px;
+  }
+  .filters {
+    flex-wrap: wrap;
+  }
+  .filters .search-input {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+  .filters > .picker {
+    width: 100%;
+  }
+  .active-filter-summary {
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .active-filter-summary button {
+    min-height: 44px;
+  }
+  .project-page-tools {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
+@media (max-width: 767px) {
+  [data-slot='select-item'] {
+    min-height: 44px;
+  }
+}
+
+.search-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  color: #526078;
+  background: white;
+}
+.search-close:hover {
+  background: #eef2f8;
+}
+.quick-action-dialog [data-slot='command-input-wrapper'] {
+  padding-right: 52px;
+}
+.quick-action-dialog [data-slot='command-item'] > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.onboarding-dialog {
+  max-width: min(680px, calc(100vw - 24px)) !important;
+}
+.getting-started {
+  color: #526078;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.getting-started h3 {
+  color: #243249;
+  font-weight: 650;
+  font-size: 15px;
+}
+.getting-started-steps {
+  display: grid;
+  gap: 18px;
+  list-style: decimal;
+  padding-left: 22px;
+  margin-top: 16px;
+}
+.getting-started-steps li {
+  padding-left: 5px;
+}
+.getting-started .button {
+  margin-top: 10px;
+}
+.install-guide {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.install-guide dl {
+  display: grid;
+  gap: 14px;
+  margin: 16px 0;
+}
+.install-guide dt {
+  font-weight: 600;
+  color: #243249;
+}
+.install-guide dd {
+  margin: 3px 0 0;
+}
+@media (max-width: 767px) {
+  .quick-action-dialog {
+    top: calc(var(--search-top, 0px) + 12px) !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(var(--search-height, 100dvh) - 24px) !important;
+    transform: none !important;
+    translate: none !important;
+    display: flex;
+    flex-direction: column;
+    animation: none !important;
+  }
+  .quick-action-dialog [data-slot='command'] {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .quick-action-dialog [data-slot='command-input-wrapper'] {
+    flex-shrink: 0;
+  }
+  .quick-action-dialog [data-slot='command-list'] {
+    max-height: min(390px, calc(var(--search-height, 100dvh) - 92px));
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .quick-action-dialog [data-slot='command-item'] {
+    min-height: 44px;
+  }
+  .quick-action-dialog .command-hint {
+    display: none;
+  }
+  .onboarding-dialog {
+    max-height: calc(100dvh - 24px);
+  }
+}

@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, type CSSProperties } from 'react';
 import { flushSync } from 'react-dom';
 import {
   Search,
+  X,
   Plus,
   FolderKanban,
   LayoutDashboard,
@@ -58,6 +59,25 @@ export function QuickActions({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const commandInput = useRef<HTMLInputElement>(null);
+  const [viewport, setViewport] = useState({ height: 0, top: 0 });
+  useEffect(() => {
+    if (!open) return;
+    const visual = window.visualViewport;
+    const update = () =>
+      setViewport({
+        height: visual?.height || window.innerHeight,
+        top: visual?.offsetTop || 0,
+      });
+    update();
+    visual?.addEventListener('resize', update);
+    visual?.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    return () => {
+      visual?.removeEventListener('resize', update);
+      visual?.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [open]);
   const changeOpen = (value: boolean) => {
     setOpen(value);
     if (value) setQuery('');
@@ -105,7 +125,25 @@ export function QuickActions({
         </kbd>
       </button>
       <Dialog open={open} onOpenChange={changeOpen}>
-        <DialogContent className="quick-action-dialog" showCloseButton={false}>
+        <DialogContent
+          className="quick-action-dialog"
+          showCloseButton={false}
+          style={
+            {
+              '--search-height': viewport.height
+                ? `${viewport.height}px`
+                : '100dvh',
+              '--search-top': `${viewport.top}px`,
+            } as CSSProperties
+          }
+        >
+          <button
+            className="search-close"
+            aria-label="Close search"
+            onClick={() => changeOpen(false)}
+          >
+            <X size={18} />
+          </button>
           <DialogTitle className="sr-only">Quick actions</DialogTitle>
           <DialogDescription className="sr-only">
             Search actions and projects. Use arrow keys to move and Enter to
@@ -290,7 +328,7 @@ export function BudgetAttention({
     <section className="budget-attention" aria-label="Project budget alerts">
       <div className="attention-heading">
         <span>
-          <TriangleAlert size={16} /> A little attention now goes a long way.
+          <TriangleAlert size={16} /> Budget alerts
         </span>
         <small>
           {alerts.length}{' '}

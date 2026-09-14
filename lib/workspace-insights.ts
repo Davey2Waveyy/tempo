@@ -47,3 +47,9 @@ export function dayTotals(entries: Entry[]) {
     totals.set(entry.date, (totals.get(entry.date) || 0) + entry.seconds);
   return totals;
 }
+
+export function scopedEntries(entries: Entry[], projectId: string) {
+  return projectId === 'all'
+    ? entries
+    : entries.filter((entry) => entry.projectId === projectId);
+}

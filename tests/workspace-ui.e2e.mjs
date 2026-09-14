@@ -260,6 +260,40 @@ try {
     const r = await cdp('Page.captureScreenshot', { format: 'png' });
     await writeFile(path, Buffer.from(r.data, 'base64'));
   };
+  assert.equal(
+    await evaluate("document.querySelector('.page-heading h1').textContent"),
+    'Overview',
+  );
+  assert.equal(
+    await evaluate(
+      "document.querySelector('[aria-current=page]').textContent.trim()",
+    ),
+    'Overview',
+  );
+  await evaluate("document.querySelector('.skip-link').focus()");
+  await cdp('Input.dispatchKeyEvent', {
+    type: 'keyDown',
+    key: 'Enter',
+    code: 'Enter',
+    windowsVirtualKeyCode: 13,
+  });
+  await cdp('Input.dispatchKeyEvent', {
+    type: 'keyUp',
+    key: 'Enter',
+    code: 'Enter',
+    windowsVirtualKeyCode: 13,
+  });
+  await wait("document.activeElement.id === 'main-content'");
+  await cdp('Emulation.setEmulatedMedia', {
+    features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+  });
+  assert.equal(
+    await evaluate(
+      "getComputedStyle(document.querySelector('.recent-work-item')).transitionDuration",
+    ),
+    '0s',
+  );
+  await cdp('Emulation.setEmulatedMedia', { features: [] });
   await screenshot('/tmp/tempo-overview-improved.png');
   await click('.recent-work-item');
   await wait("!!document.querySelector('.timer-card.is-running')");
@@ -286,10 +320,13 @@ try {
   assert.equal(saved.entries.length, 5);
   await navigate('Time tracker');
   await click('.day-navigator button:nth-child(2)');
-  await wait("document.querySelectorAll('.entry-row').length===1");
-  assert.equal(
-    await evaluate("document.querySelector('.entry-edit-link').textContent"),
-    'Discovery workshop',
+  await wait(
+    `document.querySelectorAll('.entry-row').length===${saved.entries.filter((entry) => entry.date === dates[0]).length}`,
+  );
+  assert.ok(
+    await evaluate(
+      "[...document.querySelectorAll('.entry-edit-link')].some(e => e.textContent === 'Discovery workshop')",
+    ),
   );
   await click('.active-filter-summary button');
   await wait("document.querySelectorAll('.entry-row').length===5");
@@ -363,6 +400,15 @@ try {
   await tap('[aria-label="Search actions and projects"]');
   await wait('!!document.querySelector("[cmdk-input]")');
   await wait('document.activeElement?.hasAttribute("cmdk-input")');
+  await new Promise((r) => setTimeout(r, 250));
+  assert.equal(
+    await evaluate(
+      `(()=>{const r=document.querySelector('.quick-action-dialog').getBoundingClientRect();return r.left>=0&&r.top>=0&&r.right<=innerWidth&&r.width>=innerWidth-32})()`,
+    ),
+    true,
+    'Mobile search dialog stays on screen and spans the viewport width',
+  );
+  await screenshot('/tmp/tempo-search-mobile.png');
   await cdp('Input.dispatchKeyEvent', {
     type: 'keyDown',
     key: 'Escape',

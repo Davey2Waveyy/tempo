@@ -1,5 +1,7 @@
 'use client';
 import Link from 'next/link';
+import { GettingStarted } from '@/components/getting-started';
+import { WorkspaceSkeleton } from '@/components/workspace-skeleton';
 import { AuthScreen, type CurrentUser } from '@/components/auth-screen';
 import {
   QuickActions,
@@ -8,7 +10,7 @@ import {
   BudgetAttention,
   TimerDock,
 } from '@/components/workspace-tools';
-import { projectHours } from '@/lib/workspace-insights';
+import { projectHours, scopedEntries } from '@/lib/workspace-insights';
 import { AdminPanel } from '@/components/admin-panel';
 import {
   useCallback,
@@ -16,6 +18,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ComponentProps,
 } from 'react';
 import {
   Clock3,
@@ -28,7 +31,6 @@ import {
   Square,
   ChevronRight,
   ChevronLeft,
-  Sparkles,
   Settings2,
   Download,
   Pencil,
@@ -40,6 +42,7 @@ import {
   Archive,
   RotateCcw,
   Coffee,
+  BookOpen,
   LogOut,
   Printer,
   FileText,
@@ -54,6 +57,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarTrigger,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import {
   Dialog,
@@ -115,6 +119,21 @@ type Modal =
   | { type: 'project'; project?: Project }
   | { type: 'settings' }
   | null;
+function WorkspaceNavButton({
+  onClick,
+  ...props
+}: ComponentProps<typeof SidebarMenuButton>) {
+  const { setOpenMobile } = useSidebar();
+  return (
+    <SidebarMenuButton
+      {...props}
+      onClick={(event) => {
+        onClick?.(event);
+        setOpenMobile(false);
+      }}
+    />
+  );
+}
 function Picker({
   value,
   onChange,
@@ -170,6 +189,7 @@ function Blank({ title, text }: { title: string; text: string }) {
 }
 function EntryForm({
   entry,
+  initialProjectId,
   projects,
   busy,
   onSave,
@@ -177,6 +197,7 @@ function EntryForm({
   onDelete,
 }: {
   entry?: Entry;
+  initialProjectId?: string;
   projects: Project[];
   busy: boolean;
   onSave: (p: Record<string, unknown>) => Promise<boolean>;
@@ -184,7 +205,10 @@ function EntryForm({
   onDelete?: () => void;
 }) {
   const [projectId, setProject] = useState(
-    entry?.projectId || projects.find((p) => !p.archived)?.id || '',
+    entry?.projectId ||
+      initialProjectId ||
+      projects.find((p) => !p.archived)?.id ||
+      '',
   );
   const [billable, setBillable] = useState(entry?.billable ?? true);
   return (
@@ -641,6 +665,7 @@ export default function Home() {
   const authEpoch = useRef(0);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
   const [invoice, setInvoice] = useState<InvoiceRequest | null>(null);
   const [confirm, setConfirm] = useState<{
@@ -837,7 +862,24 @@ export default function Home() {
   const periodEntries = entries.filter(
     (e) => e.date >= dates[0] && e.date <= dates[6],
   );
-  const visibleEntries = periodEntries
+  const scopeProject =
+    view === 'Time tracker'
+      ? projects.find((p) => p.id === projectFilter)
+      : undefined;
+  const projectEntries = scopedEntries(
+    entries,
+    view === 'Time tracker' ? projectFilter : 'all',
+  );
+  const scopedPeriodEntries = scopedEntries(
+    periodEntries,
+    view === 'Time tracker' ? projectFilter : 'all',
+  );
+  const showMainTimer =
+    view === 'Overview' ||
+    (view === 'Time tracker' &&
+      !scopeProject?.archived &&
+      (!w?.timer || !scopeProject || w.timer.projectId === scopeProject.id));
+  const visibleEntries = scopedPeriodEntries
     .filter(
       (e) =>
         (view !== 'Time tracker' || !selectedDay || e.date === selectedDay) &&
@@ -848,11 +890,11 @@ export default function Home() {
           .includes(search.toLowerCase()),
     )
     .sort((a, b) => b.date.localeCompare(a.date));
-  const total = periodEntries.reduce((a, e) => a + e.seconds, 0);
-  const billable = periodEntries
+  const total = scopedPeriodEntries.reduce((a, e) => a + e.seconds, 0);
+  const billable = scopedPeriodEntries
     .filter((e) => e.billable)
     .reduce((a, e) => a + e.seconds, 0);
-  const value = periodEntries.reduce(
+  const value = scopedPeriodEntries.reduce(
     (a, e) =>
       a +
       (e.billable
@@ -862,9 +904,11 @@ export default function Home() {
     0,
   );
   const utilization = total ? Math.round((billable / total) * 100) : 0;
-  const selectedProject = timerProject || active[0]?.id || '';
+  const selectedProject =
+    scopeProject?.id || timerProject || active[0]?.id || '';
   const openEntry = () => {
     setError('');
+    if (scopeProject?.archived) return;
     if (!active.length) {
       setModal({ type: 'project' });
       setNotice('Create your first project, then log some time.');
@@ -895,9 +939,15 @@ export default function Home() {
   const periodProjectHours = projectHours(periodEntries);
   const totalsFor = (id: string, period = false) =>
     (period ? periodProjectHours : allProjectHours).get(id) || 0;
+  const selectProjectScope = (id: string) => {
+    setProjectFilter(id);
+    setSelectedDay(null);
+    if (id !== 'all' && !projects.find((p) => p.id === id)?.archived)
+      setTimerProject(id);
+  };
   const openProjectTime = (id: string) => {
     go('Time tracker');
-    setProjectFilter(id);
+    selectProjectScope(id);
   };
   const resumeTask = async (entry: Entry) => {
     if (w?.timer || busy) return;
@@ -1071,6 +1121,9 @@ export default function Home() {
     );
   return (
     <SidebarProvider style={{ '--sidebar-width': '232px' } as CSSProperties}>
+      <a className="skip-link" href="#main-content">
+        Skip to content
+      </a>
       <Sidebar>
         <SidebarHeader>
           <Link className="brand" href="/">
@@ -1088,9 +1141,10 @@ export default function Home() {
           <SidebarMenu>
             {navigation.map(({ Icon, label }) => (
               <SidebarMenuItem key={label}>
-                <SidebarMenuButton
+                <WorkspaceNavButton
                   className="nav-item"
                   isActive={view === label}
+                  aria-current={view === label ? 'page' : undefined}
                   onClick={() => go(label)}
                 >
                   <Icon />
@@ -1098,17 +1152,21 @@ export default function Home() {
                   {label === 'Time tracker' && w?.timer && (
                     <span className="live-dot" />
                   )}
-                </SidebarMenuButton>
+                </WorkspaceNavButton>
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
-          <div className="sidebar-note">
-            <Sparkles size={19} />
-            <h3>Good work takes time.</h3>
-            <p>Make sure yours counts.</p>
-          </div>
         </SidebarContent>
         <SidebarFooter>
+          {w && (
+            <WorkspaceNavButton
+              className="sidebar-logout"
+              onClick={() => setGuideOpen(true)}
+            >
+              <BookOpen size={16} />
+              <span>Getting started</span>
+            </WorkspaceNavButton>
+          )}
           {user?.role === 'owner' && (
             <button
               className="sidebar-logout"
@@ -1167,7 +1225,7 @@ export default function Home() {
           )}
         </SidebarFooter>
       </Sidebar>
-      <main className="main">
+      <main className="main" id="main-content" tabIndex={-1}>
         <header className="topbar">
           <div>
             <SidebarTrigger className="mobile-menu" />
@@ -1185,45 +1243,25 @@ export default function Home() {
               onProjectTime={openProjectTime}
             />
           )}
-          <span className="saved">
+          <output className="saved">
             <i />
-            {busy ? 'Saving…' : w ? 'Saved to your workspace' : 'Connecting…'}
-          </span>
+            {busy
+              ? 'Saving…'
+              : error
+                ? 'Sync error'
+                : w
+                  ? 'Saved'
+                  : 'Connecting…'}
+          </output>
         </header>
         <div className="content">
           <section className="page-heading">
             <div>
-              <div className="eyebrow">
-                {view === 'Overview'
-                  ? 'YOUR WORK, AT A GLANCE'
-                  : view === 'Time tracker'
-                    ? 'A PLACE FOR EVERY HOUR'
-                    : view === 'Projects'
-                      ? 'THE BIGGER PICTURE'
-                      : 'KNOW THE VALUE OF YOUR TIME'}
-              </div>
-              <h1>
-                {view === 'Overview'
-                  ? 'A little focus. A lot of progress.'
-                  : view === 'Time tracker'
-                    ? 'Make every hour count.'
-                    : view === 'Projects'
-                      ? 'Good work, well managed.'
-                      : 'Your time. The full picture.'}
-              </h1>
-              <p>
-                {view === 'Overview'
-                  ? 'Make room for your best work. We’ll keep track of the time.'
-                  : view === 'Time tracker'
-                    ? 'Find your flow. Keep a record of the work that matters.'
-                    : view === 'Projects'
-                      ? 'Keep your clients, budgets, and next big things in sync.'
-                      : 'Turn the hours you put in into insights you can act on.'}
-              </p>
+              <h1>{view}</h1>
             </div>
             <button
               className="button"
-              disabled={!w}
+              disabled={!w || !!scopeProject?.archived}
               onClick={
                 view === 'Projects'
                   ? () => {
@@ -1237,6 +1275,30 @@ export default function Home() {
               {view === 'Projects' ? 'New project' : 'Log time'}
             </button>
           </section>
+          {w && view === 'Time tracker' && (
+            <section className="project-scope" aria-label="Timesheet project">
+              <span className="scope-label">Project</span>
+              <Picker
+                label="Filter by project"
+                value={projectFilter}
+                onChange={selectProjectScope}
+                items={[
+                  { value: 'all', label: 'All projects' },
+                  ...projects.map((p) => ({
+                    value: p.id,
+                    label: `${p.name} · ${p.client}${p.archived ? ' (archived)' : ''}`,
+                  })),
+                ]}
+              />
+              <span>
+                {scopeProject?.archived
+                  ? 'Archived · restore this project to log new time'
+                  : scopeProject
+                    ? 'Time and totals for this project'
+                    : 'Time and totals across all projects'}
+              </span>
+            </section>
+          )}
           {error && !modal && !confirm && (
             <div className="feedback error" role="alert">
               <CircleAlert size={17} />
@@ -1261,62 +1323,29 @@ export default function Home() {
             </output>
           )}
           {!w ? (
-            <section className="panel">
-              <Blank
-                title={error ? 'Let’s reconnect.' : 'Opening your workspace…'}
-                text={
-                  error
-                    ? 'Your saved work is still safe. Use Retry to reconnect.'
-                    : 'Getting your projects and time entries ready.'
-                }
-              />
-            </section>
+            error ? (
+              <section className="panel">
+                <Blank
+                  title="Workspace unavailable"
+                  text="Use Retry to reconnect."
+                />
+              </section>
+            ) : (
+              <WorkspaceSkeleton view={view} />
+            )
           ) : (
             <>
               {w.projects.length === 0 && (
                 <section className="onboarding-guide">
                   <div className="onboarding-header">
-                    <span className="eyebrow">QUICK START GUIDE</span>
-                    <h2>Welcome to your private workspace</h2>
-                    <p>Here’s how to get up and running in 3 quick steps:</p>
+                    <h2>Welcome to Tempo</h2>
                   </div>
-                  <div className="onboarding-steps">
-                    <div className="onboarding-step">
-                      <span className="step-num">1</span>
-                      <div>
-                        <strong>Create a project</strong>
-                        <p>Set up a client name, hourly rate, and color tag.</p>
-                        <button
-                          className="button primary sm"
-                          onClick={() => setModal({ type: 'project' })}
-                        >
-                          <Plus size={14} /> Add project
-                        </button>
-                      </div>
-                    </div>
-                    <div className="onboarding-step">
-                      <span className="step-num">2</span>
-                      <div>
-                        <strong>Track your hours</strong>
-                        <p>
-                          Use the live timer or log completed sessions manually.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="onboarding-step">
-                      <span className="step-num">3</span>
-                      <div>
-                        <strong>Use as an app (PWA)</strong>
-                        <p>
-                          On iOS, tap Share → “Add to Home Screen” for instant
-                          access.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                  <GettingStarted
+                    onCreateProject={() => setModal({ type: 'project' })}
+                  />
                 </section>
               )}
-              {(view === 'Overview' || view === 'Time tracker') && (
+              {showMainTimer && (
                 <section
                   data-main-timer
                   className={`timer-card ${w.timer ? 'is-running' : ''}`}
@@ -1358,7 +1387,7 @@ export default function Home() {
                           <Picker
                             label="Select a project"
                             value={w.timer?.projectId || selectedProject}
-                            disabled={!!w.timer || busy}
+                            disabled={!!w.timer || busy || !!scopeProject}
                             onChange={setTimerProject}
                             items={active.map((p) => ({
                               value: p.id,
@@ -1423,9 +1452,9 @@ export default function Home() {
                   </div>
                 </section>
               )}
-              {(view === 'Overview' || view === 'Time tracker') && !w.timer && (
+              {showMainTimer && !w.timer && (
                 <RecentWork
-                  entries={entries}
+                  entries={projectEntries}
                   projects={projects}
                   busy={busy}
                   onStart={(entry) => void resumeTask(entry)}
@@ -1447,7 +1476,9 @@ export default function Home() {
                       [
                         'Hours this week',
                         (total / 3600).toFixed(1),
-                        `${Math.round((total / 3600 / w.goal) * 100)}% of your ${w.goal}-hour goal`,
+                        scopeProject
+                          ? `${scopeProject.name} · ${scopeProject.client}`
+                          : `${Math.round((total / 3600 / w.goal) * 100)}% of your ${w.goal}-hour goal`,
                       ],
                       [
                         'Billable value',
@@ -1460,9 +1491,17 @@ export default function Home() {
                         `${duration(total - billable)} non-billable`,
                       ],
                       [
-                        'Active projects',
-                        String(active.length),
-                        `${new Set(active.map((p) => p.client)).size} clients in your orbit`,
+                        scopeProject
+                          ? 'Project hours · all time'
+                          : 'Active projects',
+                        scopeProject
+                          ? (allProjectHours.get(scopeProject.id) || 0).toFixed(
+                              1,
+                            )
+                          : String(active.length),
+                        scopeProject
+                          ? `of ${scopeProject.budget} budgeted hours`
+                          : `${new Set(active.map((p) => p.client)).size} clients`,
                       ],
                     ].map(([label, v, sub], i) => (
                       <div className="stat" key={label}>
@@ -1474,7 +1513,7 @@ export default function Home() {
                         </span>
                         <strong>{v}</strong>
                         <small>{sub}</small>
-                        {i === 0 && (
+                        {i === 0 && !scopeProject && (
                           <Progress
                             className="goal-progress"
                             value={Math.min(100, (total / 3600 / w.goal) * 100)}
@@ -1637,7 +1676,7 @@ export default function Home() {
                                 />
                               </div>
                               <span
-                                className={pct >= 90 ? 'budget-warning' : ''}
+                                className={pct >= 80 ? 'budget-warning' : ''}
                               >
                                 {pct}%
                               </span>
@@ -1697,7 +1736,7 @@ export default function Home() {
                   </div>
                   <DayNavigator
                     dates={dates}
-                    entries={periodEntries}
+                    entries={scopedPeriodEntries}
                     selected={selectedDay}
                     onSelect={setSelectedDay}
                   />
@@ -1711,18 +1750,6 @@ export default function Home() {
                         placeholder="Search your work…"
                       />
                     </div>
-                    <Picker
-                      label="Filter by project"
-                      value={projectFilter}
-                      onChange={setProjectFilter}
-                      items={[
-                        { value: 'all', label: 'All projects' },
-                        ...projects.map((p) => ({
-                          value: p.id,
-                          label: p.name,
-                        })),
-                      ]}
-                    />
                     <Picker
                       label="Filter billable status"
                       value={billFilter}
@@ -1818,14 +1845,24 @@ export default function Home() {
                               </span>
                               <span
                                 className={
-                                  p.archived ? 'status archived' : 'status'
+                                  p.archived
+                                    ? 'status archived'
+                                    : pct >= 100
+                                      ? 'status error'
+                                      : pct >= 80
+                                        ? 'status warning'
+                                        : 'status'
                                 }
                               >
                                 {p.archived
                                   ? 'Archived'
                                   : pct >= 100
-                                    ? 'Over budget'
-                                    : 'Active'}
+                                    ? h > p.budget
+                                      ? 'Over budget'
+                                      : 'Budget reached'
+                                    : pct >= 80
+                                      ? 'Near budget'
+                                      : 'Active'}
                               </span>
                               <button
                                 className="icon-button"
@@ -1846,7 +1883,7 @@ export default function Home() {
                                 <span> / {p.budget} hours</span>
                               </strong>
                               <span
-                                className={pct >= 90 ? 'budget-warning' : ''}
+                                className={pct >= 80 ? 'budget-warning' : ''}
                               >
                                 {pct}%
                               </span>
@@ -1857,7 +1894,7 @@ export default function Home() {
                               aria-label={`${p.name} time budget`}
                             />
                             <p
-                              className={pct >= 90 ? 'budget-warning' : 'muted'}
+                              className={pct >= 80 ? 'budget-warning' : 'muted'}
                             >
                               {h > p.budget
                                 ? `${(h - p.budget).toFixed(1)} hours over budget`
@@ -1924,10 +1961,7 @@ export default function Home() {
                 <>
                   <section className="report-banner">
                     <div>
-                      <span className="eyebrow">
-                        READY FOR YOUR NEXT INVOICE
-                      </span>
-                      <h2>Good work deserves a clear record.</h2>
+                      <h2>Export this week</h2>
                       <p>
                         Export the selected week’s entries, with client details,
                         rates, and billable amounts.
@@ -2071,6 +2105,23 @@ export default function Home() {
           )}
         </div>
       </main>
+      <Dialog open={guideOpen} onOpenChange={setGuideOpen}>
+        <DialogContent className="tempo-dialog onboarding-dialog">
+          <DialogHeader>
+            <DialogTitle>Getting started</DialogTitle>
+            <DialogDescription>
+              The guide shown to new members. Reopen it anytime from the
+              sidebar.
+            </DialogDescription>
+          </DialogHeader>
+          <GettingStarted
+            onCreateProject={() => {
+              setGuideOpen(false);
+              setModal({ type: 'project' });
+            }}
+          />
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={modal !== null}
         onOpenChange={(open) => {
@@ -2109,6 +2160,7 @@ export default function Home() {
           {modal?.type === 'entry' && (
             <EntryForm
               entry={modal.entry}
+              initialProjectId={scopeProject?.id || selectedProject}
               projects={projects}
               busy={busy}
               onCancel={() => setModal(null)}
@@ -2205,14 +2257,14 @@ export default function Home() {
       )}
       {w?.timer && (
         <TimerDock
-          key={view}
+          key={`${view}-${projectFilter}`}
           timer={w.timer}
           project={projects.find((p) => p.id === w.timer?.projectId)}
           currency={w.currency}
           busy={busy}
-          hasMainTimer={view === 'Overview' || view === 'Time tracker'}
+          hasMainTimer={showMainTimer}
           onOpen={() => {
-            go('Time tracker');
+            openProjectTime(w.timer!.projectId);
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
           onStop={() =>

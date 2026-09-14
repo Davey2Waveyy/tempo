@@ -65,3 +65,25 @@ test('day totals retain seconds and empty inputs are safe', () => {
   assert.equal(projectHours([]).size, 0);
   assert.deepEqual(budgetAlerts(projects, []), []);
 });
+
+test('project scope keeps duplicate-name projects, archived history, and empty projects separate', async () => {
+  const { scopedEntries } = await import('../lib/workspace-insights.ts');
+  const data = [
+    entry('one', 'a', '2026-09-14', 5400),
+    entry('two', 'b', '2026-09-14', 3600),
+    entry('old', 'c', '2026-09-14', 7200),
+  ];
+  assert.deepEqual(
+    scopedEntries(data, 'a').map((e) => e.id),
+    ['one'],
+  );
+  assert.equal(dayTotals(scopedEntries(data, 'a')).get('2026-09-14'), 5400);
+  assert.equal(projectHours(scopedEntries(data, 'b')).get('a'), undefined);
+  assert.deepEqual(scopedEntries(data, 'empty'), []);
+  assert.deepEqual(
+    scopedEntries(data, 'c').map((e) => e.id),
+    ['old'],
+  );
+  assert.equal(scopedEntries(data, 'all').length, 3);
+  assert.equal(data.length, 3);
+});
