@@ -1266,7 +1266,12 @@ button:disabled {
     max-width: none !important;
     max-height: calc(var(--search-height, 100dvh) - 24px) !important;
     transform: none !important;
-    translate: none !important;
+    /* ponytail: zero Tailwind's translate VARS, not the `translate` property.
+       The CSS minifier strips `translate:none`/`0 0` as redundant-to-initial,
+       but never custom-property declarations — so the base -translate-x/y-1/2
+       (which shoved this sheet off-screen in the built bundle) stays neutralized. */
+    --tw-translate-x: 0 !important;
+    --tw-translate-y: 0 !important;
     display: flex;
     flex-direction: column;
     animation: none !important;
