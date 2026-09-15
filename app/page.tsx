@@ -378,7 +378,7 @@ function ProjectForm({
           />
         </label>
         <label>
-          Time budget (hours)
+          Weekly time budget (hours)
           <input
             name="budget"
             type="number"
@@ -993,6 +993,7 @@ export default function Home() {
     setSearch('');
     setProjectFilter('all');
     setBillFilter('all');
+    setWeek(0);
   };
   const download = () => {
     const blob = new Blob(
@@ -1567,15 +1568,15 @@ export default function Home() {
                       ],
                       [
                         scopeProject
-                          ? 'Project hours · all time'
+                          ? 'Project hours · this week'
                           : 'Active projects',
                         scopeProject
-                          ? (allProjectHours.get(scopeProject.id) || 0).toFixed(
-                              1,
-                            )
+                          ? (
+                              periodProjectHours.get(scopeProject.id) || 0
+                            ).toFixed(1)
                           : String(active.length),
                         scopeProject
-                          ? `of ${scopeProject.budget} budgeted hours`
+                          ? `of ${scopeProject.budget}h weekly budget`
                           : `${new Set(active.map((p) => p.client)).size} clients`,
                       ],
                     ].map(([label, v, sub], i) => (
@@ -1604,7 +1605,7 @@ export default function Home() {
                 <>
                   <BudgetAttention
                     projects={projects}
-                    entries={entries}
+                    entries={periodEntries}
                     onOpen={(id) => {
                       setError('');
                       setModal({
@@ -1722,7 +1723,7 @@ export default function Home() {
                       </div>
                       {active.length ? (
                         active.slice(0, 3).map((p) => {
-                          const h = totalsFor(p.id);
+                          const h = totalsFor(p.id, true);
                           const pct = Math.round((h / p.budget) * 100);
                           return (
                             <button
@@ -1766,7 +1767,7 @@ export default function Home() {
                       )}
                       <div className="project-footer">
                         <span>
-                          <i /> Budgets include all recorded time
+                          <i /> This week’s hours vs each weekly budget
                         </span>
                       </div>
                     </section>
@@ -1919,7 +1920,7 @@ export default function Home() {
                             .includes(projectQuery.toLowerCase()),
                       )
                       .map((p) => {
-                        const h = totalsFor(p.id),
+                        const h = totalsFor(p.id, true),
                           pct = Math.round((h / p.budget) * 100);
                         return (
                           <section className="panel project-card" key={p.id}>
@@ -1964,7 +1965,7 @@ export default function Home() {
                             <div className="project-budget-label">
                               <strong>
                                 {h.toFixed(1)}
-                                <span> / {p.budget} hours</span>
+                                <span> / {p.budget}h this week</span>
                               </strong>
                               <span
                                 className={pct >= 80 ? 'budget-warning' : ''}
@@ -1975,14 +1976,14 @@ export default function Home() {
                             <Progress
                               className={`project-progress color-${p.color}`}
                               value={Math.min(100, pct)}
-                              aria-label={`${p.name} time budget`}
+                              aria-label={`${p.name} weekly time budget`}
                             />
                             <p
                               className={pct >= 80 ? 'budget-warning' : 'muted'}
                             >
                               {h > p.budget
-                                ? `${(h - p.budget).toFixed(1)} hours over budget`
-                                : `${(p.budget - h).toFixed(1)} hours remaining`}
+                                ? `${(h - p.budget).toFixed(1)}h over this week’s budget`
+                                : `${(p.budget - h).toFixed(1)}h left this week`}
                             </p>
                             <div className="project-card-bottom">
                               <span>
