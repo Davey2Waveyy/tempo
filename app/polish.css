@@ -1113,7 +1113,19 @@ button:disabled {
   font-size: 13px;
 }
 .project-scope .scope-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-weight: 650;
+  font-size: 15px;
+  color: #243249;
+}
+.project-scope .scope-label small {
+  font-size: 10px;
   font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #98a2b3;
 }
 .project-scope .picker {
   min-width: 220px;

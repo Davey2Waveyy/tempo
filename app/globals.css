@@ -422,6 +422,13 @@ h1 {
 .section-heading > svg {
   color: #a4abba;
 }
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
 .chart {
   display: flex;
   align-items: flex-end;

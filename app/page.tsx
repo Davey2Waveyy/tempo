@@ -427,6 +427,7 @@ type InvoiceRequest = {
   to: string;
   number: string;
   notes: string;
+  dueDays: number;
 };
 function InvoiceSetup({
   clients,
@@ -441,10 +442,33 @@ function InvoiceSetup({
     dateKey(new Date(today.getFullYear(), today.getMonth(), 1)),
   );
   const [to, setTo] = useState(dateKey(today));
+  const [period, setPeriod] = useState('month');
+  const [dueDays, setDueDays] = useState('14');
   const [number, setNumber] = useState(
     `INV-${dateKey(today).replaceAll('-', '')}`,
   );
   const [notes, setNotes] = useState('');
+  // Presets fill From/To; hand-editing either date switches to Custom.
+  const applyPeriod = (value: string) => {
+    setPeriod(value);
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const d = now.getDate();
+    if (value === 'month') {
+      setFrom(dateKey(new Date(y, m, 1)));
+      setTo(dateKey(now));
+    } else if (value === 'lastMonth') {
+      setFrom(dateKey(new Date(y, m - 1, 1)));
+      setTo(dateKey(new Date(y, m, 0)));
+    } else if (value === 'fortnight') {
+      setFrom(dateKey(new Date(y, m, d - 13)));
+      setTo(dateKey(now));
+    } else if (value === 'week') {
+      setFrom(dateKey(new Date(y, m, d - ((now.getDay() + 6) % 7))));
+      setTo(dateKey(now));
+    }
+  };
   if (!clients.length)
     return (
       <p className="form-note">
@@ -463,13 +487,31 @@ function InvoiceSetup({
             items={clients.map((c) => ({ value: c, label: c }))}
           />
         </div>
+        <div className="form-field">
+          <span>Period</span>
+          <Picker
+            label="Billing period"
+            value={period}
+            onChange={applyPeriod}
+            items={[
+              { value: 'month', label: 'This month' },
+              { value: 'lastMonth', label: 'Last month' },
+              { value: 'fortnight', label: 'Last 2 weeks' },
+              { value: 'week', label: 'This week' },
+              { value: 'custom', label: 'Custom range' },
+            ]}
+          />
+        </div>
         <label>
           From
           <input
             type="date"
             value={from}
             max={to}
-            onChange={(e) => setFrom(e.target.value)}
+            onChange={(e) => {
+              setFrom(e.target.value);
+              setPeriod('custom');
+            }}
           />
         </label>
         <label>
@@ -478,9 +520,26 @@ function InvoiceSetup({
             type="date"
             value={to}
             min={from}
-            onChange={(e) => setTo(e.target.value)}
+            onChange={(e) => {
+              setTo(e.target.value);
+              setPeriod('custom');
+            }}
           />
         </label>
+        <div className="form-field">
+          <span>Payment due</span>
+          <Picker
+            label="Payment terms"
+            value={dueDays}
+            onChange={setDueDays}
+            items={[
+              { value: '0', label: 'Due on receipt' },
+              { value: '7', label: 'Net 7 days' },
+              { value: '14', label: 'Net 14 days' },
+              { value: '30', label: 'Net 30 days' },
+            ]}
+          />
+        </div>
         <label>
           Invoice no.
           <input
@@ -491,19 +550,21 @@ function InvoiceSetup({
         </label>
       </div>
       <label className="invoice-setup-notes">
-        Notes / payment terms (optional)
+        Notes (optional)
         <textarea
           rows={2}
           maxLength={500}
           value={notes}
-          placeholder="e.g. Payment due within 14 days. Bank transfer to…"
+          placeholder="e.g. Bank transfer to Acct 12-345-678. Thanks for your business."
           onChange={(e) => setNotes(e.target.value)}
         />
       </label>
       <button
         className="button primary"
         disabled={!client}
-        onClick={() => onCreate({ client, from, to, number, notes })}
+        onClick={() =>
+          onCreate({ client, from, to, number, notes, dueDays: Number(dueDays) })
+        }
       >
         <FileText size={16} /> Preview invoice
       </button>
@@ -523,7 +584,10 @@ function Invoice({
   request: InvoiceRequest;
   onClose: () => void;
 }) {
-  const { client, from, to, number, notes } = request;
+  const { client, from, to, number, notes, dueDays } = request;
+  const issued = new Date();
+  const due = new Date(issued);
+  due.setDate(due.getDate() + dueDays);
   const currency = workspace.currency;
   const money2 = (v: number) =>
     new Intl.NumberFormat('en-US', {
@@ -579,7 +643,13 @@ function Invoice({
             </div>
             <div>
               <span>Issued</span>
-              <strong>{fmt(dateKey(new Date()))}</strong>
+              <strong>{fmt(dateKey(issued))}</strong>
+            </div>
+            <div>
+              <span>Due</span>
+              <strong>
+                {dueDays > 0 ? fmt(dateKey(due)) : 'On receipt'}
+              </strong>
             </div>
           </div>
         </header>
@@ -673,6 +743,8 @@ export default function Home() {
     payload: Record<string, unknown>;
     title: string;
     text: string;
+    cta?: string;
+    pending?: string;
   } | null>(null);
   const [week, setWeek] = useState(0);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -1277,25 +1349,28 @@ export default function Home() {
           </section>
           {w && view === 'Time tracker' && (
             <section className="project-scope" aria-label="Timesheet project">
-              <span className="scope-label">Project</span>
+              <span className="scope-label">
+                <small>{scopeProject ? 'Client' : 'Viewing'}</small>
+                {scopeProject ? scopeProject.client : 'All clients'}
+              </span>
               <Picker
                 label="Filter by project"
                 value={projectFilter}
                 onChange={selectProjectScope}
                 items={[
-                  { value: 'all', label: 'All projects' },
+                  { value: 'all', label: 'All projects · all clients' },
                   ...projects.map((p) => ({
                     value: p.id,
-                    label: `${p.name} · ${p.client}${p.archived ? ' (archived)' : ''}`,
+                    label: `${p.client} · ${p.name}${p.archived ? ' (archived)' : ''}`,
                   })),
                 ]}
               />
               <span>
                 {scopeProject?.archived
-                  ? 'Archived · restore this project to log new time'
+                  ? `Archived · restore “${scopeProject.name}” to log new time`
                   : scopeProject
-                    ? 'Time and totals for this project'
-                    : 'Time and totals across all projects'}
+                    ? `Showing “${scopeProject.name}” — time and totals for this project only`
+                    : 'Time and totals across every client and project'}
               </span>
             </section>
           )}
@@ -1726,13 +1801,22 @@ export default function Home() {
                         {visibleEntries.length} ENTRIES
                       </span>
                     </h2>
-                    <button
-                      className="button"
-                      disabled={!visibleEntries.length}
-                      onClick={download}
-                    >
-                      <Download size={15} /> Export CSV
-                    </button>
+                    <div className="section-actions">
+                      <button
+                        className="button primary"
+                        disabled={!!scopeProject?.archived}
+                        onClick={openEntry}
+                      >
+                        <Plus size={15} /> Add entry
+                      </button>
+                      <button
+                        className="button"
+                        disabled={!visibleEntries.length}
+                        onClick={download}
+                      >
+                        <Download size={15} /> Export CSV
+                      </button>
+                    </div>
                   </div>
                   <DayNavigator
                     dates={dates}
@@ -1919,7 +2003,18 @@ export default function Home() {
                                     : 'Archive project'
                                 }
                                 onClick={() =>
-                                  void mutate('archiveProject', { id: p.id })
+                                  p.archived
+                                    ? void mutate('archiveProject', {
+                                        id: p.id,
+                                      })
+                                    : setConfirm({
+                                        action: 'archiveProject',
+                                        payload: { id: p.id },
+                                        title: `Archive ${p.name}?`,
+                                        text: `${p.client}’s “${p.name}” will be hidden from active projects and you won’t be able to log time to it until you restore it. Its entries and totals are kept.`,
+                                        cta: 'Archive',
+                                        pending: 'Archiving…',
+                                      })
                                 }
                               >
                                 {p.archived ? (
@@ -2238,7 +2333,9 @@ export default function Home() {
                   setConfirm(null);
               }}
             >
-              {busy ? 'Removing…' : 'Remove'}
+              {busy
+                ? confirm?.pending || 'Removing…'
+                : confirm?.cta || 'Remove'}
             </button>
           </div>
         </AlertDialogContent>
