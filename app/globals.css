@@ -2280,6 +2280,11 @@ small,
   @page {
     margin: 12mm;
   }
+  html,
+  body {
+    height: auto !important;
+    min-height: 0 !important;
+  }
   body {
     background: #fff;
   }
@@ -2291,15 +2296,19 @@ small,
   .pwa-install {
     display: none !important;
   }
-  /* The wrapper is a flex row; as its only child the overlay would shrink to
-     content width. Make it block so the sheet fills the printable page. */
+  /* Make the wrapper block so the sheet fills the printable page, and drop its
+     min-h-svh — that full-viewport min-height is taller than one printable page
+     (with margins) and was spilling the short invoice onto a blank 2nd page. */
   [data-slot='sidebar-wrapper'] {
     display: block !important;
+    min-height: 0 !important;
+    height: auto !important;
   }
   .invoice-overlay {
     position: static;
     display: block;
     width: 100%;
+    min-height: 0;
     padding: 0;
     background: none;
     overflow: visible;
