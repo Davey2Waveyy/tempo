@@ -637,6 +637,32 @@ function Invoice({
       day: 'numeric',
       year: 'numeric',
     });
+  // Keep the printed invoice on one page no matter how many line items it has.
+  // Measure a print-width, padding-free clone and, if it's taller than one
+  // page's content area, zoom the sheet down to fit. `zoom` (not transform)
+  // shrinks the *layout* box, so the browser paginates the smaller size — and
+  // it's honoured by print in Chrome and Safari (incl. iOS), where beforeprint
+  // is unreliable, so this runs on render rather than on print.
+  const sheetRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    const measure = () => {
+      const clone = sheet.cloneNode(true) as HTMLElement;
+      clone.style.cssText =
+        'position:absolute;left:-99999px;top:0;width:180mm;max-width:none;padding:0;box-shadow:none;zoom:1;';
+      document.body.appendChild(clone);
+      const heightMm = clone.getBoundingClientRect().height / 3.779528;
+      document.body.removeChild(clone);
+      // 215mm fits one page even in the worst case (US Letter with the default
+      // 1-inch margins leaves ~228mm), so it holds whatever paper/margins the
+      // print dialog uses.
+      sheet.style.setProperty('--print-scale', String(Math.min(1, 215 / heightMm)));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [projectId, from, to, lines.length]);
   return (
     <div className="invoice-overlay">
       <div className="invoice-actions">
@@ -647,7 +673,7 @@ function Invoice({
           <Printer size={16} /> Print / Save as PDF
         </button>
       </div>
-      <div className="invoice-sheet">
+      <div className="invoice-sheet" ref={sheetRef}>
         <header className="invoice-head">
           <div>
             <span className="invoice-mark">tempo</span>

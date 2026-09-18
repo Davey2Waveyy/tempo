@@ -2322,6 +2322,9 @@ small,
     box-shadow: none;
     border-radius: 0;
     padding: 0;
+    /* Shrink-to-fit one page for long invoices (see the Invoice component).
+       zoom scales the layout box, so pagination sees the smaller height. */
+    zoom: var(--print-scale, 1);
   }
   .invoice-summary {
     break-inside: avoid;
