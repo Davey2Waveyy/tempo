@@ -2062,6 +2062,11 @@ small,
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 14px;
 }
+.invoice-range-hint {
+  margin-top: 5px;
+  font-size: 11px;
+  color: #8a95a8;
+}
 .invoice-setup label,
 .invoice-setup-notes {
   display: flex;
@@ -2272,18 +2277,29 @@ small,
   font-size: 14px;
 }
 @media print {
+  @page {
+    margin: 12mm;
+  }
   body {
     background: #fff;
   }
-  body * {
-    visibility: hidden;
+  /* Print only the invoice. Dropping the app chrome (sidebar + main) from the
+     flex wrapper lets the sheet flow full-width from the page origin, instead
+     of being squeezed into the narrow main column — which pushed it off-centre
+     and clipped the right-aligned total. */
+  [data-slot='sidebar-wrapper'] > *:not(.invoice-overlay),
+  .pwa-install {
+    display: none !important;
   }
-  .invoice-sheet,
-  .invoice-sheet * {
-    visibility: visible;
+  /* The wrapper is a flex row; as its only child the overlay would shrink to
+     content width. Make it block so the sheet fills the printable page. */
+  [data-slot='sidebar-wrapper'] {
+    display: block !important;
   }
   .invoice-overlay {
     position: static;
+    display: block;
+    width: 100%;
     padding: 0;
     background: none;
     overflow: visible;
@@ -2293,9 +2309,13 @@ small,
   }
   .invoice-sheet {
     max-width: none;
+    width: 100%;
     box-shadow: none;
     border-radius: 0;
     padding: 0;
+  }
+  .invoice-summary {
+    break-inside: avoid;
   }
 }
 /* Invoice preview on phones: tighten padding and the line-item table so all

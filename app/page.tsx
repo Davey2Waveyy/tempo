@@ -422,7 +422,7 @@ function ProjectForm({
   );
 }
 type InvoiceRequest = {
-  client: string;
+  projectId: string;
   from: string;
   to: string;
   number: string;
@@ -430,14 +430,15 @@ type InvoiceRequest = {
   dueDays: number;
 };
 function InvoiceSetup({
-  clients,
+  projects,
   onCreate,
 }: {
-  clients: string[];
+  projects: Project[];
   onCreate: (request: InvoiceRequest) => void;
 }) {
   const today = new Date();
-  const [client, setClient] = useState(clients[0] || '');
+  const billable = projects.filter((p) => !p.archived);
+  const [projectId, setProjectId] = useState(billable[0]?.id || '');
   const [from, setFrom] = useState(
     dateKey(new Date(today.getFullYear(), today.getMonth(), 1)),
   );
@@ -448,7 +449,7 @@ function InvoiceSetup({
     `INV-${dateKey(today).replaceAll('-', '')}`,
   );
   const [notes, setNotes] = useState('');
-  // Presets fill From/To; hand-editing either date switches to Custom.
+  // Presets fill From/To; only "custom" reveals the date inputs.
   const applyPeriod = (value: string) => {
     setPeriod(value);
     const now = new Date();
@@ -469,22 +470,30 @@ function InvoiceSetup({
       setTo(dateKey(now));
     }
   };
-  if (!clients.length)
+  const short = (d: string) =>
+    new Date(d + 'T12:00:00').toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+  if (!billable.length)
     return (
       <p className="form-note">
-        Add a project with a client first — an invoice is billed to a client.
+        Add a project first — an invoice bills one project’s time.
       </p>
     );
   return (
     <div className="invoice-setup">
       <div className="invoice-setup-grid">
         <div className="form-field">
-          <span>Client</span>
+          <span>Project</span>
           <Picker
-            label="Client"
-            value={client}
-            onChange={setClient}
-            items={clients.map((c) => ({ value: c, label: c }))}
+            label="Project to bill"
+            value={projectId}
+            onChange={setProjectId}
+            items={billable.map((p) => ({
+              value: p.id,
+              label: `${p.client} · ${p.name}`,
+            }))}
           />
         </div>
         <div className="form-field">
@@ -501,31 +510,34 @@ function InvoiceSetup({
               { value: 'custom', label: 'Custom range' },
             ]}
           />
+          {period !== 'custom' && (
+            <small className="invoice-range-hint">
+              {short(from)} – {short(to)}
+            </small>
+          )}
         </div>
-        <label>
-          From
-          <input
-            type="date"
-            value={from}
-            max={to}
-            onChange={(e) => {
-              setFrom(e.target.value);
-              setPeriod('custom');
-            }}
-          />
-        </label>
-        <label>
-          To
-          <input
-            type="date"
-            value={to}
-            min={from}
-            onChange={(e) => {
-              setTo(e.target.value);
-              setPeriod('custom');
-            }}
-          />
-        </label>
+        {period === 'custom' && (
+          <>
+            <label>
+              From
+              <input
+                type="date"
+                value={from}
+                max={to}
+                onChange={(e) => setFrom(e.target.value)}
+              />
+            </label>
+            <label>
+              To
+              <input
+                type="date"
+                value={to}
+                min={from}
+                onChange={(e) => setTo(e.target.value)}
+              />
+            </label>
+          </>
+        )}
         <div className="form-field">
           <span>Payment due</span>
           <Picker
@@ -561,9 +573,16 @@ function InvoiceSetup({
       </label>
       <button
         className="button primary"
-        disabled={!client}
+        disabled={!projectId}
         onClick={() =>
-          onCreate({ client, from, to, number, notes, dueDays: Number(dueDays) })
+          onCreate({
+            projectId,
+            from,
+            to,
+            number,
+            notes,
+            dueDays: Number(dueDays),
+          })
         }
       >
         <FileText size={16} /> Preview invoice
@@ -584,7 +603,9 @@ function Invoice({
   request: InvoiceRequest;
   onClose: () => void;
 }) {
-  const { client, from, to, number, notes, dueDays } = request;
+  const { projectId, from, to, number, notes, dueDays } = request;
+  const project = projects.find((p) => p.id === projectId);
+  const client = project?.client || '';
   const issued = new Date();
   const due = new Date(issued);
   due.setDate(due.getDate() + dueDays);
@@ -596,13 +617,9 @@ function Invoice({
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(v);
-  const clientProjectIds = new Set(
-    projects.filter((p) => p.client === client).map((p) => p.id),
-  );
   const lines = entries
     .filter(
-      (e) =>
-        clientProjectIds.has(e.projectId) && e.date >= from && e.date <= to,
+      (e) => e.projectId === projectId && e.date >= from && e.date <= to,
     )
     .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
   const rateOf = (id: string) => projects.find((p) => p.id === id)?.rate || 0;
@@ -663,6 +680,8 @@ function Invoice({
             <span>Bill to</span>
             <strong>{client}</strong>
             <p>
+              {project?.name}
+              <br />
               {fmt(from)} – {fmt(to)}
             </p>
           </div>
@@ -702,7 +721,8 @@ function Invoice({
           </table>
         ) : (
           <p className="invoice-empty">
-            No time recorded for {client} between {fmt(from)} and {fmt(to)}.
+            No time recorded for {project?.name} between {fmt(from)} and{' '}
+            {fmt(to)}.
           </p>
         )}
         <div className="invoice-summary">
@@ -929,7 +949,6 @@ export default function Home() {
   const projects = w?.projects || [];
   const entries = w?.entries || [];
   const active = projects.filter((p) => !p.archived);
-  const clients = [...new Set(projects.map((p) => p.client))].sort();
   const dates = weekDates(week);
   const periodEntries = entries.filter(
     (e) => e.date >= dates[0] && e.date <= dates[6],
@@ -2076,11 +2095,11 @@ export default function Home() {
                       <h2>Create an invoice</h2>
                     </div>
                     <p className="invoice-intro">
-                      Bill a client for a period. Billable time is charged at
-                      each project’s rate; non-billable time is listed but not
+                      Pick a project and a period. Its billable time is charged
+                      at the project’s rate; non-billable time is listed but not
                       charged. Preview, then Print → Save as PDF.
                     </p>
-                    <InvoiceSetup clients={clients} onCreate={setInvoice} />
+                    <InvoiceSetup projects={projects} onCreate={setInvoice} />
                   </section>
                   <section className="panel">
                     <div className="section-heading">
