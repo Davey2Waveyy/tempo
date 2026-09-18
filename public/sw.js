@@ -1,7 +1,7 @@
 // Minimal service worker: enables install (PWA) and an offline app shell.
 // It deliberately never caches /api/ — auth and workspace data always hit the
 // network so nothing private or stale is served from the cache.
-const CACHE = 'tempo-shell-v1';
+const CACHE = 'tempo-shell-v2';
 const SHELL = [
   '/',
   '/manifest.webmanifest',
@@ -41,7 +41,27 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/api/')
   )
     return;
-  // Network-first, falling back to the cached shell when offline.
+  // Page loads must always reflect the latest deploy. The HTML carries no
+  // cache headers, so a plain fetch could return a browser-cached copy that
+  // still points at the previous build's assets — which left installed apps
+  // stuck on an old version. Fetch navigations fresh (bypassing the HTTP
+  // cache), refresh the offline shell copy, and fall back to it only offline.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request, { cache: 'no-store' })
+        .then((response) => {
+          const copy = response.clone();
+          caches
+            .open(CACHE)
+            .then((cache) => cache.put('/', copy))
+            .catch(() => {});
+          return response;
+        })
+        .catch(() => caches.match('/')),
+    );
+    return;
+  }
+  // Other GETs (content-hashed assets): network-first, cache fallback.
   event.respondWith(
     fetch(request).catch(() =>
       caches.match(request).then((cached) => cached || caches.match('/')),
