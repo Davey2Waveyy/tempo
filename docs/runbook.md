@@ -291,6 +291,8 @@ Rotate only if you believe the secret leaked. Effects:
 - **Pending setup codes stop working** (their stored hashes no longer match) —
   reissue codes for anyone mid-onboarding, and set a fresh `OWNER_SETUP_CODE` if
   an owner bootstrap is in flight.
+- **All agent keys stop working** (§12) — they're derived from this secret.
+  Everyone re-copies their new key from the Agent access panel.
 - Passkeys and workspace data are **unaffected**.
 
 ```bash
@@ -369,49 +371,48 @@ Schema is defined in [`db/schema.ts`](../db/schema.ts) (migrations in
 - **`auth_challenges`** — short-lived, single-use WebAuthn challenges (cascade
   delete).
 - **`auth_limits`** — rate-limit counters.
-- **`api_tokens`** — agent/API bearer tokens; one row per token, stored as a
-  hash, `user_id` → `users` (cascade delete). See §12.
 - **`workspaces`** — one row per user id holding the app-data JSON blob +
   `revision`; plus the legacy `'solo'` snapshot. **No** foreign key to `users`,
   which is why deleting a user leaves an orphaned workspace row (see §6).
 
 ---
 
-## 12. Agent / API access (tokens)
+## 12. Agent / API access (keys)
 
 Passkeys can't be automated — every sign-in needs a human gesture — so an agent
-or script authenticates with a **personal access token** instead: a long random
-secret sent as an `Authorization: Bearer …` header. A token acts as the user who
-created it, against **their own workspace only** — same isolation as a normal
-sign-in, so it never reaches anyone else's data.
+or script authenticates with an **agent key** instead: a credential sent as an
+`Authorization: Bearer …` header. A key acts as the user it belongs to, against
+**their own workspace only** — same isolation as a normal sign-in, so it never
+reaches anyone else's data.
 
-### Create / revoke (any signed-in user)
+The key is **stateless**: it's an HMAC of the user's id and `tokenVersion` under
+`AUTH_SECRET`, not a stored row — so the feature needs no database table or
+migration, and each user has exactly one key.
+
+### Get your key (any signed-in user)
 
 1. Sign in (passkey) → sidebar footer → **Agent access**.
-2. Name the token (e.g. "Personal agent") → **Create** → copy it. **It's shown
-   once.** If lost, revoke it and make another.
-3. Revoke anytime from the same panel — the agent loses access immediately.
+2. Copy the key shown and hand it to your agent. (It's the same key each time
+   you open the panel — reading it from a signed-in session is safe.)
 
-Token management is deliberately **session-only**: a token cannot be used to
-mint, list, or revoke tokens (so a leaked token can't entrench itself). Each
-user may hold up to 20 tokens.
+The panel is **session-only**: a key cannot read or rotate itself.
 
-### Using a token
+### Using a key
 
 ```bash
-TOKEN=tempo_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+KEY='tempo_<your-key>'
 BASE=https://tempo.cillierd.workers.dev
 
 # Identity:
-curl -s "$BASE/api/auth/me" -H "Authorization: Bearer $TOKEN"
+curl -s "$BASE/api/auth/me" -H "Authorization: Bearer $KEY"
 
 # Read the workspace (note the returned `revision`):
-curl -s "$BASE/api/workspace" -H "Authorization: Bearer $TOKEN"
+curl -s "$BASE/api/workspace" -H "Authorization: Bearer $KEY"
 
 # Write — send the latest `revision` back (optimistic concurrency). Example:
 # log a 1-hour entry against an existing project id:
 curl -s -X POST "$BASE/api/workspace" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
   -d '{"action":"saveEntry","revision":<n>,
        "payload":{"description":"Research","projectId":"<id>",
                   "date":"2026-10-27","seconds":3600,"billable":true}}'
@@ -421,18 +422,21 @@ curl -s -X POST "$BASE/api/workspace" \
   `archiveProject`, `startTimer`, `stopTimer`, `saveSettings`, `clearDemo`.
 - A write must carry the current `revision` from the latest `GET`; a stale one
   returns `409` with the fresh snapshot — re-read and retry.
-- Token requests skip the browser Origin/CSRF check (safe — a cross-site page
-  can't attach a bearer token). **Admin endpoints reject tokens**: member
+- Key requests skip the browser Origin/CSRF check (safe — a cross-site page
+  can't attach a bearer key). **Admin endpoints reject keys**: member
   management stays passkey-session-only.
 
-### Security notes
+### Revoking a key
 
-- Only a SHA-256 **hash** of each token is stored; the plaintext exists only in
-  the one creation response.
-- Tokens are **independent of `AUTH_SECRET`** (not derived from it), so rotating
-  that secret (§7) does **not** invalidate them. If you rotate due to a
-  suspected leak, revoke agent tokens too.
-- Removing a member (§3) deletes their tokens via cascade; **reissuing** a
-  member's code also revokes all their tokens.
-- Requires the `api_tokens` table — apply migration `drizzle/0002_*.sql`
-  (see §5) with your deploy.
+A key stays valid until the owning user's `tokenVersion` changes or
+`AUTH_SECRET` is rotated — there is no per-key revoke list (that's the price of
+being stateless). To revoke:
+
+- **A member's key** — the owner **reissues** that member's code (§3); the
+  `tokenVersion` bump rotates (invalidates) their key immediately.
+- **Any/all keys at once** — rotate `AUTH_SECRET` (§7). This also signs everyone
+  out of their browsers; they sign back in with their passkeys, and each person
+  re-copies their new key.
+
+Treat a key like a password: anyone holding it can act as that user in their own
+workspace.

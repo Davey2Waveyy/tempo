@@ -3,7 +3,9 @@ import { getDatabase } from '@/db';
 import {
   authCookie,
   hash,
+  hmac,
   readCookie,
+  safeEqual,
   signToken,
   verifyToken,
   SESSION_SECONDS,
@@ -72,23 +74,24 @@ export async function body(request: Request) {
 }
 async function userFromToken(request: Request): Promise<AuthUser | null> {
   const header = request.headers.get('authorization') || '';
-  const match = /^Bearer\s+(\S+)$/i.exec(header.trim());
+  const match =
+    /^Bearer\s+tempo_([0-9a-f-]{36})\.([A-Za-z0-9_-]{1,128})$/i.exec(
+      header.trim(),
+    );
   if (!match) return null;
-  const presented = match[1];
-  if (presented.length < 8 || presented.length > 512) return null;
-  const tokenHash = await hash(presented);
-  const db = getDatabase();
-  const user = await db
+  const [, userId, signature] = match;
+  const user = await getDatabase()
     .prepare(
-      'SELECT u.id,u.email,u.role,u.token_version AS tokenVersion FROM api_tokens t JOIN users u ON u.id=t.user_id WHERE t.token_hash=?',
+      'SELECT id,email,role,token_version AS tokenVersion FROM users WHERE id=?',
     )
-    .bind(tokenHash)
+    .bind(userId)
     .first<AuthUser>();
   if (!user) return null;
-  await db
-    .prepare('UPDATE api_tokens SET last_used_at=? WHERE token_hash=?')
-    .bind(Date.now(), tokenHash)
-    .run();
+  const expected = await hmac(
+    secret(),
+    `apitoken:${user.id}:${user.tokenVersion}`,
+  );
+  if (!safeEqual(signature, expected)) return null;
   return { ...user, viaToken: true };
 }
 export async function requireUser(request: Request): Promise<AuthUser> {
