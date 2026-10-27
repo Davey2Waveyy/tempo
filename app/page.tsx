@@ -622,6 +622,141 @@ function Invoice({
     </div>
   );
 }
+function Timesheet({
+  workspace,
+  projects,
+  entries,
+  range,
+  onClose,
+}: {
+  workspace: Workspace;
+  projects: Project[];
+  entries: Entry[];
+  range: string;
+  onClose: () => void;
+}) {
+  const currency = workspace.currency;
+  const money2 = (v: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(v);
+  const projectOf = (id: string) => projects.find((p) => p.id === id);
+  const amountOf = (e: Entry) =>
+    e.billable ? (e.seconds / 3600) * (projectOf(e.projectId)?.rate || 0) : 0;
+  const rows = [...entries].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id),
+  );
+  const totalHours = rows.reduce((s, e) => s + e.seconds / 3600, 0);
+  const billableHours = rows
+    .filter((e) => e.billable)
+    .reduce((s, e) => s + e.seconds / 3600, 0);
+  const totalValue = rows.reduce((s, e) => s + amountOf(e), 0);
+  const fmt = (d: string) =>
+    new Date(d + 'T12:00:00').toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  return (
+    <div className="invoice-overlay">
+      <div className="invoice-actions">
+        <button className="button" onClick={onClose}>
+          Close
+        </button>
+        <button className="button primary" onClick={() => window.print()}>
+          <Printer size={16} /> Print / Save as PDF
+        </button>
+      </div>
+      <div className="invoice-sheet">
+        <header className="invoice-head">
+          <div>
+            <span className="invoice-mark">tempo</span>
+            <h1>Timesheet</h1>
+          </div>
+          <div className="invoice-id">
+            <div>
+              <span>Period</span>
+              <strong>{range}</strong>
+            </div>
+            <div>
+              <span>Generated</span>
+              <strong>{fmt(dateKey(new Date()))}</strong>
+            </div>
+          </div>
+        </header>
+        <div className="invoice-parties">
+          <div>
+            <span>Workspace</span>
+            <strong>{workspace.name}</strong>
+            <p>Independent consultant</p>
+          </div>
+          <div>
+            <span>Summary</span>
+            <strong>{totalHours.toFixed(2)} hours</strong>
+            <p>
+              {billableHours.toFixed(2)}h billable · {money2(totalValue)}
+            </p>
+          </div>
+        </div>
+        {rows.length ? (
+          <table className="invoice-lines">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Client / Project</th>
+                <th>Description</th>
+                <th className="num">Hours</th>
+                <th className="num">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((e) => {
+                const p = projectOf(e.projectId);
+                return (
+                  <tr key={e.id}>
+                    <td className="nowrap">{fmt(e.date)}</td>
+                    <td>
+                      {p?.client || '—'}
+                      <small>{p?.name || ''}</small>
+                    </td>
+                    <td>
+                      {e.description}
+                      {!e.billable && (
+                        <span className="invoice-nb">Non-billable</span>
+                      )}
+                    </td>
+                    <td className="num">{(e.seconds / 3600).toFixed(2)}</td>
+                    <td className="num">
+                      {e.billable ? money2(amountOf(e)) : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <p className="invoice-empty">No entries to export for {range}.</p>
+        )}
+        <div className="invoice-summary">
+          <span className="invoice-summary-meta">
+            {rows.length} {rows.length === 1 ? 'entry' : 'entries'} ·{' '}
+            {billableHours.toFixed(2)} billable hours
+            {totalHours > billableHours
+              ? ` · ${(totalHours - billableHours).toFixed(2)}h non-billable`
+              : ''}
+          </span>
+          <div className="invoice-total-row">
+            <span>Billable value</span>
+            <strong>{money2(totalValue)}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 export default function Home() {
   const [view, setView] = useState('Overview');
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -638,6 +773,7 @@ export default function Home() {
   const [tokensOpen, setTokensOpen] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
   const [invoice, setInvoice] = useState<InvoiceRequest | null>(null);
+  const [showTimesheet, setShowTimesheet] = useState(false);
   const [confirm, setConfirm] = useState<{
     action: string;
     payload: Record<string, unknown>;
@@ -1023,6 +1159,7 @@ export default function Home() {
           setView('Overview');
           setWeek(0);
           setInvoice(null);
+          setShowTimesheet(false);
           setModal(null);
           setConfirm(null);
           setNotice('');
@@ -1131,6 +1268,7 @@ export default function Home() {
                 setTokensOpen(false);
                 setModal(null);
                 setInvoice(null);
+                setShowTimesheet(false);
                 setConfirm(null);
                 snapshotRef.current = null;
                 setSnapshot(null);
@@ -1631,13 +1769,22 @@ export default function Home() {
                         {visibleEntries.length} ENTRIES
                       </span>
                     </h2>
-                    <button
-                      className="button"
-                      disabled={!visibleEntries.length}
-                      onClick={download}
-                    >
-                      <Download size={15} /> Export CSV
-                    </button>
+                    <div className="export-actions">
+                      <button
+                        className="button"
+                        disabled={!visibleEntries.length}
+                        onClick={() => setShowTimesheet(true)}
+                      >
+                        <Printer size={15} /> Save as PDF
+                      </button>
+                      <button
+                        className="button"
+                        disabled={!visibleEntries.length}
+                        onClick={download}
+                      >
+                        <Download size={15} /> Export CSV
+                      </button>
+                    </div>
                   </div>
                   <div className="filters">
                     <div className="search-input">
@@ -1832,13 +1979,22 @@ export default function Home() {
                         rates, and billable amounts.
                       </p>
                     </div>
-                    <button
-                      className="button primary"
-                      disabled={!visibleEntries.length}
-                      onClick={download}
-                    >
-                      <Download size={16} /> Export CSV
-                    </button>
+                    <div className="export-actions">
+                      <button
+                        className="button primary"
+                        disabled={!visibleEntries.length}
+                        onClick={() => setShowTimesheet(true)}
+                      >
+                        <Printer size={16} /> Save as PDF
+                      </button>
+                      <button
+                        className="button"
+                        disabled={!visibleEntries.length}
+                        onClick={download}
+                      >
+                        <Download size={16} /> Export CSV
+                      </button>
+                    </div>
                   </section>
                   <section className="panel">
                     <div className="section-heading">
@@ -2097,6 +2253,15 @@ export default function Home() {
           entries={entries}
           request={invoice}
           onClose={() => setInvoice(null)}
+        />
+      )}
+      {showTimesheet && w && (
+        <Timesheet
+          workspace={w}
+          projects={projects}
+          entries={visibleEntries}
+          range={weekLabel}
+          onClose={() => setShowTimesheet(false)}
         />
       )}
       {user?.role === 'owner' && (

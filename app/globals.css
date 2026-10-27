@@ -410,6 +410,11 @@ h1 {
   justify-content: space-between;
   gap: 12px;
 }
+.export-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .section-heading h2 {
   font-size: 15px;
   font-weight: 700;
@@ -1824,6 +1829,9 @@ small,
   }
   .section-heading .button {
     font-size: 12px;
+  }
+  .entries-panel .section-heading {
+    flex-wrap: wrap;
   }
   .section-heading > span {
     font-size: 12px;
