@@ -131,7 +131,8 @@ The owner does all routine member management from the app UI.
 Click the **↻ (reissue)** button next to the member. This:
 
 - signs them out on **every** device,
-- **revokes their old passkey(s)** and any old code,
+- **revokes their old passkey(s)**, any old setup code, and all of their agent
+  tokens (§12),
 - issues a **new** one-time code (copy & send as above),
 - **keeps their workspace** intact.
 
@@ -368,8 +369,70 @@ Schema is defined in [`db/schema.ts`](../db/schema.ts) (migrations in
 - **`auth_challenges`** — short-lived, single-use WebAuthn challenges (cascade
   delete).
 - **`auth_limits`** — rate-limit counters.
+- **`api_tokens`** — agent/API bearer tokens; one row per token, stored as a
+  hash, `user_id` → `users` (cascade delete). See §12.
 - **`workspaces`** — one row per user id holding the app-data JSON blob +
   `revision`; plus the legacy `'solo'` snapshot. **No** foreign key to `users`,
   which is why deleting a user leaves an orphaned workspace row (see §6).
-</content>
-</invoke>
+
+---
+
+## 12. Agent / API access (tokens)
+
+Passkeys can't be automated — every sign-in needs a human gesture — so an agent
+or script authenticates with a **personal access token** instead: a long random
+secret sent as an `Authorization: Bearer …` header. A token acts as the user who
+created it, against **their own workspace only** — same isolation as a normal
+sign-in, so it never reaches anyone else's data.
+
+### Create / revoke (any signed-in user)
+
+1. Sign in (passkey) → sidebar footer → **Agent access**.
+2. Name the token (e.g. "Personal agent") → **Create** → copy it. **It's shown
+   once.** If lost, revoke it and make another.
+3. Revoke anytime from the same panel — the agent loses access immediately.
+
+Token management is deliberately **session-only**: a token cannot be used to
+mint, list, or revoke tokens (so a leaked token can't entrench itself). Each
+user may hold up to 20 tokens.
+
+### Using a token
+
+```bash
+TOKEN=tempo_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+BASE=https://tempo.cillierd.workers.dev
+
+# Identity:
+curl -s "$BASE/api/auth/me" -H "Authorization: Bearer $TOKEN"
+
+# Read the workspace (note the returned `revision`):
+curl -s "$BASE/api/workspace" -H "Authorization: Bearer $TOKEN"
+
+# Write — send the latest `revision` back (optimistic concurrency). Example:
+# log a 1-hour entry against an existing project id:
+curl -s -X POST "$BASE/api/workspace" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"action":"saveEntry","revision":<n>,
+       "payload":{"description":"Research","projectId":"<id>",
+                  "date":"2026-10-27","seconds":3600,"billable":true}}'
+```
+
+- Actions mirror the app: `saveEntry`, `deleteEntry`, `saveProject`,
+  `archiveProject`, `startTimer`, `stopTimer`, `saveSettings`, `clearDemo`.
+- A write must carry the current `revision` from the latest `GET`; a stale one
+  returns `409` with the fresh snapshot — re-read and retry.
+- Token requests skip the browser Origin/CSRF check (safe — a cross-site page
+  can't attach a bearer token). **Admin endpoints reject tokens**: member
+  management stays passkey-session-only.
+
+### Security notes
+
+- Only a SHA-256 **hash** of each token is stored; the plaintext exists only in
+  the one creation response.
+- Tokens are **independent of `AUTH_SECRET`** (not derived from it), so rotating
+  that secret (§7) does **not** invalidate them. If you rotate due to a
+  suspected leak, revoke agent tokens too.
+- Removing a member (§3) deletes their tokens via cascade; **reissuing** a
+  member's code also revokes all their tokens.
+- Requires the `api_tokens` table — apply migration `drizzle/0002_*.sql`
+  (see §5) with your deploy.

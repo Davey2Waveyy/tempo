@@ -13,6 +13,11 @@ export type AuthUser = {
   email: string;
   role: 'owner' | 'member';
   tokenVersion: number;
+  // True when the request authenticated with an agent/API bearer token rather
+  // than a browser session cookie. Token requests skip the Origin/CSRF check
+  // (a cross-site page cannot attach a bearer token) and are barred from
+  // member management (see requireOwner).
+  viaToken?: boolean;
 };
 export class AuthError extends Error {
   constructor(
@@ -65,9 +70,32 @@ export async function body(request: Request) {
     throw new AuthError('Invalid request.');
   }
 }
+async function userFromToken(request: Request): Promise<AuthUser | null> {
+  const header = request.headers.get('authorization') || '';
+  const match = /^Bearer\s+(\S+)$/i.exec(header.trim());
+  if (!match) return null;
+  const presented = match[1];
+  if (presented.length < 8 || presented.length > 512) return null;
+  const tokenHash = await hash(presented);
+  const db = getDatabase();
+  const user = await db
+    .prepare(
+      'SELECT u.id,u.email,u.role,u.token_version AS tokenVersion FROM api_tokens t JOIN users u ON u.id=t.user_id WHERE t.token_hash=?',
+    )
+    .bind(tokenHash)
+    .first<AuthUser>();
+  if (!user) return null;
+  await db
+    .prepare('UPDATE api_tokens SET last_used_at=? WHERE token_hash=?')
+    .bind(Date.now(), tokenHash)
+    .run();
+  return { ...user, viaToken: true };
+}
 export async function requireUser(request: Request): Promise<AuthUser> {
   secret();
   requestOrigin(request);
+  const viaToken = await userFromToken(request);
+  if (viaToken) return viaToken;
   const p = await verifyToken(
     secret(),
     readCookie(request.headers.get('cookie')),
@@ -93,6 +121,11 @@ export async function requireOwner(request: Request) {
   const user = await requireUser(request);
   if (user.role !== 'owner')
     throw new AuthError('Only the owner can manage members.', 403);
+  if (user.viaToken)
+    throw new AuthError(
+      'Member management requires a signed-in browser session, not an agent token.',
+      403,
+    );
   return user;
 }
 export async function session(user: AuthUser, origin: string) {

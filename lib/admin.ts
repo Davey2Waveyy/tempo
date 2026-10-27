@@ -104,6 +104,7 @@ export async function reissueCode(request: Request) {
       db.prepare('DELETE FROM credentials WHERE user_id=?').bind(id),
       db.prepare('DELETE FROM auth_sessions WHERE user_id=?').bind(id),
       db.prepare('DELETE FROM auth_challenges WHERE user_id=?').bind(id),
+      db.prepare('DELETE FROM api_tokens WHERE user_id=?').bind(id),
       db
         .prepare(
           'INSERT INTO setup_codes(user_id,code_hash,expires_at,attempts) VALUES (?,?,?,0) ON CONFLICT(user_id) DO UPDATE SET code_hash=excluded.code_hash,expires_at=excluded.expires_at,attempts=0',

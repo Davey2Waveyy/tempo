@@ -88,3 +88,21 @@ export const authLimits = sqliteTable(
   },
   (t) => [index('limits_expiry').on(t.expiresAt)],
 );
+export const apiTokens = sqliteTable(
+  'api_tokens',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    prefix: text('prefix').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    createdAt: integer('created_at').notNull(),
+    lastUsedAt: integer('last_used_at'),
+  },
+  (t) => [
+    uniqueIndex('api_tokens_hash').on(t.tokenHash),
+    index('api_tokens_user').on(t.userId),
+  ],
+);

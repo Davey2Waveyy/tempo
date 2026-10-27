@@ -184,13 +184,17 @@ export function AdminPanel({
                   onClick={() => copy('invite')}
                 >
                   <Copy size={15} />
-                  {copied === 'invite' ? 'Copied invite' : 'Copy invite message'}
+                  {copied === 'invite'
+                    ? 'Copied invite'
+                    : 'Copy invite message'}
                 </button>
                 <button className="button" onClick={() => copy('code')}>
                   {copied === 'code' ? 'Copied code' : 'Copy code only'}
                 </button>
               </div>
-              <small>Tempo doesn’t send emails — you share this yourself.</small>
+              <small>
+                Tempo doesn’t send emails — you share this yourself.
+              </small>
             </section>
           )}
           <div className="member-list">
@@ -255,7 +259,7 @@ export function AdminPanel({
           <AlertDialogDescription>
             {confirm?.action === 'remove'
               ? `This permanently removes ${confirm.member.email}, their passkeys, and their entire workspace.`
-              : `This signs ${confirm?.member.email} out on every device and revokes all previous passkeys and setup codes. Their workspace is kept.`}
+              : `This signs ${confirm?.member.email} out on every device and revokes all previous passkeys, agent tokens, and setup codes. Their workspace is kept.`}
           </AlertDialogDescription>
           {error && (
             <p className="feedback error" role="alert">

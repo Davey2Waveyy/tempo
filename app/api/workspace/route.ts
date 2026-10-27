@@ -59,8 +59,8 @@ function boolean(v: unknown): boolean {
 }
 export async function POST(request: Request) {
   try {
-    checkOrigin(request);
     const user = await requireUser(request);
+    if (!user.viaToken) checkOrigin(request);
     const raw = await request.text();
     if (raw.length > 20000)
       return response({ error: 'Request is too large.' }, 413);

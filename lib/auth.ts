@@ -106,6 +106,13 @@ export function normalizeCode(value: unknown) {
     ? value.replace(/[\s-]/g, '').toUpperCase().slice(0, 128)
     : '';
 }
+// Agent/API access token: a high-entropy opaque secret presented as a
+// Bearer credential. Only its SHA-256 hash is stored (see api_tokens), so a
+// database leak never exposes a usable token. The `tempo_` prefix makes a
+// leaked token easy to recognize in logs and secret scanners.
+export function generateApiToken() {
+  return `tempo_${base64url(crypto.getRandomValues(new Uint8Array(32)))}`;
+}
 export async function setupHash(secret: string, userId: string, code: string) {
   return hmac(secret, `setup:${userId}:${normalizeCode(code)}`);
 }

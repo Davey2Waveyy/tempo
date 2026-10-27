@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { AuthScreen, type CurrentUser } from '@/components/auth-screen';
 import { AdminPanel } from '@/components/admin-panel';
+import { TokenManager } from '@/components/token-manager';
 import {
   useCallback,
   useEffect,
@@ -33,6 +34,7 @@ import {
   RotateCcw,
   Coffee,
   LogOut,
+  KeyRound,
   Printer,
   FileText,
 } from 'lucide-react';
@@ -633,6 +635,7 @@ export default function Home() {
   const authEpoch = useRef(0);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [tokensOpen, setTokensOpen] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
   const [invoice, setInvoice] = useState<InvoiceRequest | null>(null);
   const [confirm, setConfirm] = useState<{
@@ -654,10 +657,10 @@ export default function Home() {
     setSnapshot(s);
   }, []);
   const load = useCallback(async () => {
-    const epoch=authEpoch.current;
+    const epoch = authEpoch.current;
     try {
       const me = await fetch('/api/auth/me', { cache: 'no-store' });
-      if(epoch!==authEpoch.current)return;
+      if (epoch !== authEpoch.current) return;
       if (me.status === 401) {
         snapshotRef.current = null;
         setSnapshot(null);
@@ -672,14 +675,16 @@ export default function Home() {
       const currentUser = (await me.json()) as CurrentUser;
       setUser(currentUser);
       const r = await fetch('/api/workspace', { cache: 'no-store' });
-      if(epoch!==authEpoch.current)return;
+      if (epoch !== authEpoch.current) return;
       if (r.status === 401) {
-        snapshotRef.current=null;setSnapshot(null);setUser(null);
+        snapshotRef.current = null;
+        setSnapshot(null);
+        setUser(null);
         setAuthRequired(true);
         return;
       }
       const s = (await r.json()) as Snapshot & { error?: string };
-      if(epoch!==authEpoch.current)return;
+      if (epoch !== authEpoch.current) return;
       if (!r.ok) throw new Error(s.error || 'Could not load your workspace.');
       setAuthRequired(false);
       if (!lock.current) apply(s);
@@ -1008,7 +1013,22 @@ export default function Home() {
     return (
       <AuthScreen
         onUnlock={(currentUser) => {
-          authEpoch.current++;setDescription('');setTimerProject('');setTimerBillable(true);setSearch('');setProjectFilter('all');setBillFilter('all');setView('Overview');setWeek(0);setInvoice(null);setModal(null);setConfirm(null);setNotice('');setError('');setAdminOpen(false);
+          authEpoch.current++;
+          setDescription('');
+          setTimerProject('');
+          setTimerBillable(true);
+          setSearch('');
+          setProjectFilter('all');
+          setBillFilter('all');
+          setView('Overview');
+          setWeek(0);
+          setInvoice(null);
+          setModal(null);
+          setConfirm(null);
+          setNotice('');
+          setError('');
+          setAdminOpen(false);
+          setTokensOpen(false);
           setUser(currentUser);
           setAuthRequired(false);
           void load();
@@ -1064,6 +1084,15 @@ export default function Home() {
               <span>Manage members</span>
             </button>
           )}
+          {user && (
+            <button
+              className="sidebar-logout"
+              onClick={() => setTokensOpen(true)}
+            >
+              <KeyRound size={16} />
+              <span>Agent access</span>
+            </button>
+          )}
           <button
             className="profile"
             onClick={() => {
@@ -1099,6 +1128,7 @@ export default function Home() {
                 }
                 setUser(null);
                 setAdminOpen(false);
+                setTokensOpen(false);
                 setModal(null);
                 setInvoice(null);
                 setConfirm(null);
@@ -1234,14 +1264,19 @@ export default function Home() {
                       <span className="step-num">2</span>
                       <div>
                         <strong>Track your hours</strong>
-                        <p>Use the live timer or log completed sessions manually.</p>
+                        <p>
+                          Use the live timer or log completed sessions manually.
+                        </p>
                       </div>
                     </div>
                     <div className="onboarding-step">
                       <span className="step-num">3</span>
                       <div>
                         <strong>Use as an app (PWA)</strong>
-                        <p>On iOS, tap Share → “Add to Home Screen” for instant access.</p>
+                        <p>
+                          On iOS, tap Share → “Add to Home Screen” for instant
+                          access.
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -2066,6 +2101,9 @@ export default function Home() {
       )}
       {user?.role === 'owner' && (
         <AdminPanel open={adminOpen} onClose={() => setAdminOpen(false)} />
+      )}
+      {user && (
+        <TokenManager open={tokensOpen} onClose={() => setTokensOpen(false)} />
       )}
     </SidebarProvider>
   );
